@@ -30,7 +30,7 @@ certFile:
 keyFile:
 
 defaultFeedSort: hot
-disableForumCreation: true
-forumCreationReqPoints: 10
-maxForumsPerUser: 10
+disableForumCreation: false
+forumCreationReqPoints: 0
+maxForumsPerUser: 1
 imagesFolderPath: "images"

@@ -9,23 +9,24 @@ import (
 	"database/sql/driver"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"log"
 	"math"
+	"mime/multipart"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	msql "github.com/discuitnet/discuit/internal/sql"
 	"github.com/discuitnet/discuit/internal/uid"
-	"github.com/h2non/bimg"
 	"golang.org/x/exp/slices"
 
 	// Register jpeg and png decoding for images pkg.
@@ -114,21 +115,6 @@ func (f ImageFormat) Valid() bool {
 
 func (f ImageFormat) Extension() string {
 	return "." + string(f)
-}
-
-// BIMGType converts f into its matching bimg.ImageType value.
-func (f ImageFormat) BIMGType() (t bimg.ImageType, err error) {
-	switch f {
-	case ImageFormatJPEG:
-		t = bimg.JPEG
-	case ImageFormatWEBP:
-		t = bimg.WEBP
-	case ImageFormatPNG:
-		t = bimg.PNG
-	default:
-		err = errors.New("unsupported bimg image type")
-	}
-	return
 }
 
 // RGB represents color values of range (0, 255). It implements sql.Scanner and
@@ -568,182 +554,8 @@ func getImage(ctx context.Context, db *sql.DB, r *request, cacheEnabled bool) ([
 		return nil, err
 	}
 
-	shouldProcess := false
-	if !r.size.Zero() {
-		if r.size.Width >= record.Width && r.size.Height >= record.Height {
-			// Either requesting the image in its original
-			// size or a larger one. In either case, return
-			// the image in its original size.
-			r.size = ImageSize{}
-		} else {
-			shouldProcess = true
-		}
-	}
-	if r.format != "" && r.format != record.Format {
-		shouldProcess = true
-	}
-
-	if shouldProcess {
-		image, err = defaultConverter.convert(ctx, image, r)
-		if err == nil && cacheEnabled {
-			if err := putToCache(image, r); err != nil {
-				log.Printf("putToCache error: %v\n", err)
-			}
-		}
-	}
-	return image, err
-}
-
-type convertRequest struct {
-	request  *request
-	image    []byte
-	response chan convertResponse
-	ctx      context.Context
-}
-
-type convertResponse struct {
-	image []byte
-	err   error
-}
-
-// In order to limit the number of parallel image conversion jobs.
-type converter struct {
-	incoming chan convertRequest
-	done     chan struct{}
-}
-
-var defaultConverter = newConverter()
-
-func newConverter() *converter {
-	c := &converter{
-		incoming: make(chan convertRequest),
-		done:     make(chan struct{}),
-	}
-	go c.work()
-	return c
-}
-
-// work keeps running until c.done is closed.
-func (c *converter) work() {
-	const workersCount = 2
-	wg := sync.WaitGroup{}
-	wg.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
-		go func() {
-			c.digest()
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-}
-
-func (c *converter) digest() {
-	for {
-		select {
-		case req := <-c.incoming:
-			select {
-			case <-req.ctx.Done():
-				continue
-			default:
-			}
-
-			image, err := convertImage(req.image, req.request)
-			select {
-			case req.response <- convertResponse{image: image, err: err}:
-			case <-req.ctx.Done():
-				continue
-			case <-c.done:
-				return
-			}
-		case <-c.done:
-			return
-		}
-	}
-}
-
-var errConverterClosed = errors.New("converter is closed")
-
-func (c *converter) convert(ctx context.Context, image []byte, r *request) ([]byte, error) {
-	t0 := time.Now()
-	req := convertRequest{
-		image:    image,
-		request:  r,
-		ctx:      ctx,
-		response: make(chan convertResponse),
-	}
-
-	select {
-	case c.incoming <- req:
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-c.done:
-		return nil, errConverterClosed
-	}
-
-	select {
-	case res := <-req.response:
-		if time.Since(t0) > time.Millisecond*300 {
-			// Make note of requests that take too long.
-			log.Printf("converter.convert (id: %v) took %v (format: %v, size: %v, fit: %v)\n", r.id, time.Since(t0), r.format, r.size, r.fit)
-		}
-		return res.image, res.err
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-c.done:
-		return nil, errConverterClosed
-	}
-}
-
-// close returns all running go-routines processing images.
-func (c *converter) close() {
-	close(c.done)
-}
-
-func convertImage(image []byte, r *request) (_ []byte, err error) {
-	o := bimg.Options{
-		StripMetadata: true,
-		Quality:       bimg.Quality,
-		Crop:          true,
-	}
-
-	if r.format != "" {
-		if o.Type, err = r.format.BIMGType(); err != nil {
-			return nil, fmt.Errorf("unsupported image format %v (image id: %v)", r.format, r.id)
-		}
-	}
-
-	img, err := bimg.NewImage(image).Process(o)
-	if err != nil {
-		return nil, err
-	}
-
-	if r.size.Zero() {
-		return img, nil
-	}
-	return resizeImage(img, r.size.Width, r.size.Height, r.fit)
-}
-
-// If width or height is zero the image is returned as it was. If fit is
-// ImageFitCover, bimg's smart crop is used.
-func resizeImage(image []byte, width, height int, fit ImageFit) ([]byte, error) {
-	if width == 0 || height == 0 {
-		return image, nil
-	}
-
-	img := bimg.NewImage(image)
-	switch fit {
-	case ImageFitCover:
-		return img.Crop(width, height, bimg.GravityCentre)
-	case ImageFitContain:
-		size, err := img.Size()
-		if err != nil {
-			return nil, err
-		}
-		w, h := ImageContainSize(size.Width, size.Height, width, height)
-		return img.ResizeAndCrop(w, h)
-	default:
-		return nil, errors.New("unknown image fit")
-	}
+	// For now, we'll just return the original image without any processing
+	return image, nil
 }
 
 // ImageOptions hold optional arguments to SaveImage.
@@ -789,48 +601,22 @@ func SaveImageTx(ctx context.Context, tx *sql.Tx, storeName string, file []byte,
 		}
 	}
 
-	var img []byte
-	var err error
-	if SkipProcessing {
-		img = file
-		opts.Format = ImageFormat(bimg.DetermineImageTypeName(img))
-		if !opts.Format.Valid() {
-			return uid.ID{}, ErrImageFormatUnsupported
-		}
-	} else {
-		bimgType, err := opts.Format.BIMGType()
-		if err != nil {
-			return uid.ID{}, err
-		}
-		img, err = bimg.NewImage(file).Process(bimg.Options{
-			StripMetadata: true,
-			Quality:       bimg.Quality,
-			Type:          bimgType,
-		})
-		if err != nil {
-			return uid.ID{}, err
-		}
-	}
+	// For now, we'll just save the original image without any processing
+	img := file
 
-	img, err = resizeImage(img, opts.Width, opts.Height, opts.Fit)
+	// Get image dimensions
+	decodedImg, _, err := image.Decode(bytes.NewBuffer(img))
 	if err != nil {
 		return uid.ID{}, err
 	}
-	size, err := bimg.Size(img)
-	if err != nil {
-		return uid.ID{}, err
-	}
-	width, height := size.Width, size.Height
+	bounds := decodedImg.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
 
 	store := matchStore(storeName)
 	if store == nil {
 		return uid.ID{}, ErrStoreNotRegistered
 	}
 
-	decodedImg, _, err := image.Decode(bytes.NewBuffer(img))
-	if err != nil {
-		return uid.ID{}, err
-	}
 	averageColor := AverageColor(decodedImg)
 
 	id := uid.New()
@@ -886,4 +672,105 @@ func DeleteImagesTx(ctx context.Context, tx *sql.Tx, db *sql.DB, images ...uid.I
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM images WHERE id IN %s", msql.InClauseQuestionMarks(len(images))), args...)
 	return err
+}
+
+// ImageProcessor processes images.
+type ImageProcessor struct {
+	db        *sql.DB
+	directory string
+}
+
+// NewImageProcessor creates a new ImageProcessor.
+func NewImageProcessor(db *sql.DB, directory string) *ImageProcessor {
+	return &ImageProcessor{
+		db:        db,
+		directory: directory,
+	}
+}
+
+// SaveImage saves an image file with the given options.
+func (p *ImageProcessor) SaveImage(file multipart.File, opts ImageOptions) (*Image, error) {
+	// Read file into memory
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, file); err != nil {
+		return nil, err
+	}
+	image := buf.Bytes()
+
+	// Generate a unique ID for the image
+	hash := sha256.Sum256(image)
+	id := hex.EncodeToString(hash[:])[:12]
+	uid, err := uid.FromString(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid image ID: %v", err)
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(p.directory, 0755); err != nil {
+		return nil, err
+	}
+
+	// Save the original image
+	filename := fmt.Sprintf("%s.%s", id, opts.Format)
+	filepath := path.Join(p.directory, filename)
+	if err := os.WriteFile(filepath, image, 0644); err != nil {
+		return nil, err
+	}
+
+	// Create image record
+	img := NewImage()
+	*img.ID = uid
+	*img.Format = opts.Format
+	*img.Width = opts.Width
+	*img.Height = opts.Height
+	img.PostScan()
+
+	return img, nil
+}
+
+// ServeImage serves an image file.
+func (p *ImageProcessor) ServeImage(w http.ResponseWriter, r *http.Request, id string) error {
+	// Find image files matching the ID
+	pattern := path.Join(p.directory, id+".*")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+	if len(matches) == 0 {
+		return errors.New("image not found")
+	}
+
+	// Serve the first matching file
+	filename := matches[0]
+	ext := strings.ToLower(filepath.Ext(filename))
+	contentType := ""
+	switch ext {
+	case ".jpeg", ".jpg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".webp":
+		contentType = "image/webp"
+	default:
+		return errors.New("unsupported image format")
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	http.ServeFile(w, r, filename)
+	return nil
+}
+
+// DeleteImage deletes an image file.
+func (p *ImageProcessor) DeleteImage(id string) error {
+	pattern := path.Join(p.directory, id+".*")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+	for _, filename := range matches {
+		if err := os.Remove(filename); err != nil {
+			return err
+		}
+	}
+	return nil
 }

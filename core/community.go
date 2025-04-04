@@ -223,7 +223,7 @@ func countUserModdingCommunities(ctx context.Context, db *sql.DB, user uid.ID) (
 }
 
 // To temporary disable community creation to everyone.
-var communityCreationAdminOnly = true
+const communityCreationAdminOnly = false
 
 // CreateCommunity returns an error if creator doesn't have reqPoints or if he's
 // created more communities than maxPerUser.
