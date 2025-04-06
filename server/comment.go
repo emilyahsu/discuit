@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
 	"time"
+
+	"log"
 
 	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/httperr"
@@ -125,6 +128,27 @@ func (s *Server) addComment(w *responseWriter, r *request) error {
 
 	// +1 your own comment.
 	comment.Vote(r.ctx, s.db, *r.viewer, true)
+
+	// Trigger bot response only if the author is not a bot
+	go func() {
+		// Create a new context for the bot check
+		botCheckCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Check if the author is a bot
+		isBot, err := core.IsUserBot(botCheckCtx, s.db, *r.viewer)
+		if err != nil {
+			log.Printf("Error checking if user is bot: %v", err)
+			return
+		}
+		if isBot {
+			return // Skip bot response if author is a bot
+		}
+
+		if err := core.BotRespondToComment(r.ctx, s.db, post, comment); err != nil {
+			log.Printf("Error generating bot response to comment: %v", err)
+		}
+	}()
 
 	return w.writeJSON(comment)
 }

@@ -143,6 +143,9 @@ func (pg *Program) Serve() error {
 		return fmt.Errorf("error creating sentinel users: %w", err)
 	}
 
+	// Set the bots file path
+	core.SetBotsFilePath("bots.txt")
+
 	// Create the default badges:
 	if err := core.NewBadgeType(pg.db, "supporter"); err != nil {
 		return fmt.Errorf("error creating 'supporter' user badge: %w", err)
@@ -333,6 +336,8 @@ func MysqlDSN(addr, user, password, dbName string) string {
 	cfg.Passwd = password
 	cfg.DBName = dbName
 	cfg.ParseTime = true
+	cfg.Collation = "utf8mb4_unicode_ci"
+	cfg.Loc = time.Local
 	return cfg.FormatDSN()
 }
 

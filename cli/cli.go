@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/images"
 	"github.com/discuitnet/discuit/internal/uid"
 	"github.com/discuitnet/discuit/program"
@@ -41,6 +43,7 @@ func RunCLI() {
 			CommandDeleteUser,
 			CommandInjectConfig,
 			CommandImagePath,
+			CommandBot,
 		},
 	}
 
@@ -448,4 +451,60 @@ var CommandImagePath = &cli.Command{
 		fmt.Printf("Image path: %s\n", images.ImagePath(id))
 		return nil
 	},
+}
+
+var CommandBot = &cli.Command{
+	Name:  "bot",
+	Usage: "Bot user management commands",
+	Subcommands: []*cli.Command{
+		{
+			Name:  "init-from-file",
+			Usage: "Initialize bot users from a text file",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "file",
+					Usage:    "Path to the file containing bot user information (format: username,password,personality)",
+					Required: true,
+				},
+			},
+			Action: func(ctx *cli.Context) error {
+				pg, err := program.NewProgram(true)
+				if err != nil {
+					return err
+				}
+				defer pg.Close()
+
+				filePath := ctx.String("file")
+				db, err := pg.OpenDatabase()
+				if err != nil {
+					return err
+				}
+
+				if err := core.InitializeBotUsersFromFile(context.Background(), db, filePath); err != nil {
+					return err
+				}
+
+				log.Println("Successfully initialized bot users from file")
+				return nil
+			},
+		},
+	},
+}
+
+var app = cli.NewApp()
+
+func init() {
+	app.Commands = append(app.Commands,
+		CommandServe,
+		CommandNewBadge,
+		CommandMod,
+		CommandBot,
+		CommandAdmin,
+		CommandAddAllUsersToCommunity,
+		CommandDeleteUnusedCommunities,
+		CommandDeleteUser,
+		CommandInjectConfig,
+		CommandImagePath,
+		CommandMigrate,
+	)
 }

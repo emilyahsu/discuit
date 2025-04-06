@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -1457,4 +1458,86 @@ func GetAllUserIDs(ctx context.Context, db *sql.DB, fetchDeleted, fetchBanned bo
 	}
 
 	return ids, nil
+}
+
+// InitializeBotUsersFromFile reads a text file and creates bot users in the database
+// The file should have one user per line in the format: username,password,personality
+func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string) error {
+	// Set the bots file path for future use
+	SetBotsFilePath(filePath)
+
+	// Read the file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Split the content into lines
+	lines := strings.Split(string(content), "\n")
+
+	// Start a transaction
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Process each line
+	for _, line := range lines {
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Split the line into parts
+		parts := strings.Split(line, ",")
+		if len(parts) < 3 {
+			return fmt.Errorf("invalid line format: %s", line)
+		}
+
+		username := strings.TrimSpace(parts[0])
+		password := strings.TrimSpace(parts[1])
+		personality := strings.TrimSpace(parts[2])
+
+		// Validate username
+		if err := IsBotUsernameValid(username); err != nil {
+			return fmt.Errorf("invalid username %s: %w", username, err)
+		}
+
+		// Check if username already exists
+		var exists bool
+		err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE username_lc = ?)", strings.ToLower(username)).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to check username existence: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("username %s already exists", username)
+		}
+
+		// Hash password
+		passwordHash, err := HashPassword([]byte(password))
+		if err != nil {
+			return err
+		}
+
+		// Create bot user
+		botID := uid.New()
+		now := time.Now()
+
+		// Insert into users table
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO users (id, username, username_lc, password, created_at, last_seen, last_seen_month, points, admin, about_me)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, botID, username, strings.ToLower(username), passwordHash, now, now, now.Format("January 2006"), 0, false, personality)
+		if err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
+	}
+
+	// Commit the transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
