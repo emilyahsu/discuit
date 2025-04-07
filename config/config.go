@@ -97,6 +97,11 @@ func Parse(path string) (*Config, error) {
 		MaxForumsPerUser:       -1,
 	}
 
+	// Check for Heroku PORT environment variable
+	if port := os.Getenv("PORT"); port != "" {
+		c.Addr = ":" + port
+	}
+
 	var envConfigMap = map[string]interface{}{
 		"DISCUIT_IS_DEVELOPMENT": &c.IsDevelopment,
 
