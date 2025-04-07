@@ -41,11 +41,11 @@ const CreateCommunity = ({ open, onClose }) => {
         setFormError('A community by that name already exists.');
       } else {
         const error = await res.json();
-        if (error.code === 'not_enough_points') {
+        if (error.code === 'not-enough-points') {
           setFormError(
             `You need at least ${import.meta.env.VITE_FORUMCREATIONREQPOINTS} points to create a community.`
           );
-        } else if (error.code === 'max_limit_reached') {
+        } else if (error.code === 'max-limit-reached') {
           setFormError(
             "You've reached your max limit of the number of communities you can moderate."
           );
