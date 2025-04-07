@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"crypto/tls"
-
 	"github.com/discuitnet/discuit/config"
 	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/httperr"
@@ -89,10 +87,17 @@ func New(db *sql.DB, conf *config.Config) (*Server, error) {
 			IdleTimeout: 240 * time.Second,
 			Wait:        true,
 			Dial: func() (redis.Conn, error) {
+				// Parse Redis URL if it starts with redis:// or rediss://
+				if strings.HasPrefix(conf.RedisAddress, "redis://") || strings.HasPrefix(conf.RedisAddress, "rediss://") {
+					return redis.DialURL(conf.RedisAddress,
+						redis.DialConnectTimeout(10*time.Second),
+						redis.DialReadTimeout(30*time.Second),
+						redis.DialWriteTimeout(30*time.Second),
+					)
+				}
+
+				// Fall back to standard connection
 				c, err := redis.Dial("tcp", conf.RedisAddress,
-					redis.DialTLSConfig(&tls.Config{
-						InsecureSkipVerify: true,
-					}),
 					redis.DialConnectTimeout(10*time.Second),
 					redis.DialReadTimeout(30*time.Second),
 					redis.DialWriteTimeout(30*time.Second),

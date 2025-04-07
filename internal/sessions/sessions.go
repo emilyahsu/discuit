@@ -1,10 +1,10 @@
 package sessions
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -79,10 +79,17 @@ func NewRedisStore(network, address, cookieName string) (*RedisStore, error) {
 		IdleTimeout: 240 * time.Second,
 		Wait:        true,
 		Dial: func() (redis.Conn, error) {
+			// Parse Redis URL if it starts with redis:// or rediss://
+			if strings.HasPrefix(address, "redis://") || strings.HasPrefix(address, "rediss://") {
+				return redis.DialURL(address,
+					redis.DialConnectTimeout(10*time.Second),
+					redis.DialReadTimeout(30*time.Second),
+					redis.DialWriteTimeout(30*time.Second),
+				)
+			}
+
+			// Fall back to standard connection
 			c, err := redis.Dial(network, address,
-				redis.DialTLSConfig(&tls.Config{
-					InsecureSkipVerify: true,
-				}),
 				redis.DialConnectTimeout(10*time.Second),
 				redis.DialReadTimeout(30*time.Second),
 				redis.DialWriteTimeout(30*time.Second),
