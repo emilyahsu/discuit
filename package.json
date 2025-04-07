@@ -1,0 +1,13 @@
+{
+  "name": "discuit",
+  "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "heroku-postbuild": "cd ui && npm ci && npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+} 
