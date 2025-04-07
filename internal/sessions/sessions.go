@@ -74,14 +74,18 @@ type RedisStore struct {
 func NewRedisStore(network, address, cookieName string) (*RedisStore, error) {
 	store := &RedisStore{CookieName: cookieName, IDLength: defaultSessionIDLength, Secure: true}
 	store.pool = &redis.Pool{
-		MaxIdle: 30,
-		// MaxActive:   10,
+		MaxIdle:     30,
+		MaxActive:   50,
 		IdleTimeout: 240 * time.Second,
+		Wait:        true,
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial(network, address,
 				redis.DialTLSConfig(&tls.Config{
 					InsecureSkipVerify: true,
 				}),
+				redis.DialConnectTimeout(10*time.Second),
+				redis.DialReadTimeout(30*time.Second),
+				redis.DialWriteTimeout(30*time.Second),
 			)
 			if err != nil {
 				return nil, err

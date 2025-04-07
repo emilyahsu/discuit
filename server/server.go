@@ -85,12 +85,17 @@ func New(db *sql.DB, conf *config.Config) (*Server, error) {
 		db: db,
 		redisPool: &redis.Pool{
 			MaxIdle:     3,
+			MaxActive:   10,
 			IdleTimeout: 240 * time.Second,
+			Wait:        true,
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", conf.RedisAddress,
 					redis.DialTLSConfig(&tls.Config{
 						InsecureSkipVerify: true,
 					}),
+					redis.DialConnectTimeout(10*time.Second),
+					redis.DialReadTimeout(30*time.Second),
+					redis.DialWriteTimeout(30*time.Second),
 				)
 				if err != nil {
 					return nil, err
