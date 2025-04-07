@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -85,17 +84,10 @@ func NewRedisStore(network, address, cookieName string) (*RedisStore, error) {
 			if strings.HasPrefix(address, "redis://") || strings.HasPrefix(address, "rediss://") {
 				// For rediss:// URLs, we need to use TLS
 				if strings.HasPrefix(address, "rediss://") {
-					// Extract hostname from URL for TLS verification
-					u, err := url.Parse(address)
-					if err != nil {
-						return nil, err
-					}
-					host := u.Hostname()
-					
 					return redis.DialURL(address,
 						redis.DialUseTLS(true),
 						redis.DialTLSConfig(&tls.Config{
-							ServerName: host,
+							InsecureSkipVerify: true, // Skip certificate verification for IP addresses
 							MinVersion: tls.VersionTLS12,
 						}),
 						redis.DialConnectTimeout(10*time.Second),

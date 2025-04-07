@@ -93,17 +93,10 @@ func New(db *sql.DB, conf *config.Config) (*Server, error) {
 				if strings.HasPrefix(conf.RedisAddress, "redis://") || strings.HasPrefix(conf.RedisAddress, "rediss://") {
 					// For rediss:// URLs, we need to use TLS
 					if strings.HasPrefix(conf.RedisAddress, "rediss://") {
-						// Extract hostname from URL for TLS verification
-						u, err := url.Parse(conf.RedisAddress)
-						if err != nil {
-							return nil, err
-						}
-						host := u.Hostname()
-						
 						return redis.DialURL(conf.RedisAddress,
 							redis.DialUseTLS(true),
 							redis.DialTLSConfig(&tls.Config{
-								ServerName: host,
+								InsecureSkipVerify: true, // Skip certificate verification for IP addresses
 								MinVersion: tls.VersionTLS12,
 							}),
 							redis.DialConnectTimeout(10*time.Second),
