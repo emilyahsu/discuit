@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"math/rand"
 	"net/http"
@@ -77,7 +78,15 @@ func NewRedisStore(network, address, cookieName string) (*RedisStore, error) {
 		// MaxActive:   10,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial(network, address)
+			c, err := redis.Dial(network, address,
+				redis.DialTLSConfig(&tls.Config{
+					InsecureSkipVerify: true,
+				}),
+			)
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
 		},
 	}
 

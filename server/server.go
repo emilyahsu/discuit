@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"crypto/tls"
+
 	"github.com/discuitnet/discuit/config"
 	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/httperr"
@@ -84,7 +86,17 @@ func New(db *sql.DB, conf *config.Config) (*Server, error) {
 		redisPool: &redis.Pool{
 			MaxIdle:     3,
 			IdleTimeout: 240 * time.Second,
-			Dial:        func() (redis.Conn, error) { return redis.Dial("tcp", conf.RedisAddress) },
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", conf.RedisAddress,
+					redis.DialTLSConfig(&tls.Config{
+						InsecureSkipVerify: true,
+					}),
+				)
+				if err != nil {
+					return nil, err
+				}
+				return c, nil
+			},
 		},
 		router:       r,
 		staticRouter: mux.NewRouter(),
