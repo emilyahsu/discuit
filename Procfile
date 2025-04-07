@@ -1,1 +1,1 @@
-web: bin/discuit serve 
+web: ./discuit serve 
