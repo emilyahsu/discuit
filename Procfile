@@ -1,1 +1,1 @@
-web: ./bin/discuit serve
+web: cd ui && npm ci && npm run build &&  .. && ./bin/discuit serve
