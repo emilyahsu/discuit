@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"crypto/tls"
+
 	"github.com/discuitnet/discuit/config"
 	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/httperr"
@@ -89,6 +91,26 @@ func New(db *sql.DB, conf *config.Config) (*Server, error) {
 			Dial: func() (redis.Conn, error) {
 				// Parse Redis URL if it starts with redis:// or rediss://
 				if strings.HasPrefix(conf.RedisAddress, "redis://") || strings.HasPrefix(conf.RedisAddress, "rediss://") {
+					// For rediss:// URLs, we need to use TLS
+					if strings.HasPrefix(conf.RedisAddress, "rediss://") {
+						// Extract hostname from URL for TLS verification
+						u, err := url.Parse(conf.RedisAddress)
+						if err != nil {
+							return nil, err
+						}
+						host := u.Hostname()
+						
+						return redis.DialURL(conf.RedisAddress,
+							redis.DialUseTLS(true),
+							redis.DialTLSConfig(&tls.Config{
+								ServerName: host,
+								MinVersion: tls.VersionTLS12,
+							}),
+							redis.DialConnectTimeout(10*time.Second),
+							redis.DialReadTimeout(30*time.Second),
+							redis.DialWriteTimeout(30*time.Second),
+						)
+					}
 					return redis.DialURL(conf.RedisAddress,
 						redis.DialConnectTimeout(10*time.Second),
 						redis.DialReadTimeout(30*time.Second),

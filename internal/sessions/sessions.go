@@ -1,9 +1,11 @@
 package sessions
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -81,6 +83,26 @@ func NewRedisStore(network, address, cookieName string) (*RedisStore, error) {
 		Dial: func() (redis.Conn, error) {
 			// Parse Redis URL if it starts with redis:// or rediss://
 			if strings.HasPrefix(address, "redis://") || strings.HasPrefix(address, "rediss://") {
+				// For rediss:// URLs, we need to use TLS
+				if strings.HasPrefix(address, "rediss://") {
+					// Extract hostname from URL for TLS verification
+					u, err := url.Parse(address)
+					if err != nil {
+						return nil, err
+					}
+					host := u.Hostname()
+					
+					return redis.DialURL(address,
+						redis.DialUseTLS(true),
+						redis.DialTLSConfig(&tls.Config{
+							ServerName: host,
+							MinVersion: tls.VersionTLS12,
+						}),
+						redis.DialConnectTimeout(10*time.Second),
+						redis.DialReadTimeout(30*time.Second),
+						redis.DialWriteTimeout(30*time.Second),
+					)
+				}
 				return redis.DialURL(address,
 					redis.DialConnectTimeout(10*time.Second),
 					redis.DialReadTimeout(30*time.Second),
