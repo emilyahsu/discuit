@@ -1526,9 +1526,9 @@ func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string
 
 		// Insert into users table
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO users (id, username, username_lc, password, created_at, last_seen, last_seen_month, points, admin, about_me)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, botID, username, strings.ToLower(username), passwordHash, now, now, now.Format("January 2006"), 0, false, personality)
+			INSERT INTO users (id, username, username_lc, password, created_at, last_seen, points, is_admin, about_me)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, botID, username, strings.ToLower(username), passwordHash, now, now, 0, false, personality)
 		if err != nil {
 			return fmt.Errorf("failed to create user: %w", err)
 		}
