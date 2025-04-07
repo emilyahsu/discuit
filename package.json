@@ -5,7 +5,6 @@
     "node": "20.x"
   },
   "scripts": {
-    "heroku-build": "tsc",
-    "heroku-postbuild": "cd ui && npm ci && npm run build && cd .."
+    "heroku-postinstall": "npm install -g typescript && cd ui && npm ci && npm run build && cd .."
   }
 } 
