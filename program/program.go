@@ -221,6 +221,11 @@ func (pg *Program) Serve() error {
 				log.Printf("ListenAndServeTLS (main) error: %v\n", err)
 			}
 		} else {
+			// For Heroku, we need to bind to the PORT environment variable
+			if port := os.Getenv("PORT"); port != "" {
+				pg.conf.Addr = ":" + port
+				log.Printf("Using Heroku PORT: %s\n", port)
+			}
 			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("ListenAndServe (main) error: %v\n", err)
 			}
