@@ -4,26 +4,25 @@ const Guidelines = () => {
   return (
     <StaticPage className="page-guidelines" title="Guidelines">
       <main className="document">
-        <h1>Discuit site guidelines</h1>
+        <h1>Seddit site guidelines</h1>
         <p>
-          For the purpose of keeping this place civil and friendly, Discuit will have certain
-          restrictions on what is and isn't allowed on this platform. But these restrictions will
-          still allow a wide rage of opinions and different communities to exist. We have no desire
-          to moderate people's opinions or censor dissenting views. We enjoy good-faith, respectful
-          discussions on (sometimes controversial) subjects with people whose opinions differ. After
-          all, no one learns anything if they only talk to people that always agree with them.
+          For the purpose of keeping this place civil and friendly, Seddit will have certain
+          rules and guidelines that all users must follow. These rules are not meant to
+          restrict your freedom of expression, but rather to ensure that everyone can
+          participate in discussions without fear of harassment or abuse.
         </p>
         <p>
-          Discuit, being a forum of forums, will naturally have two levels of moderation: site-wide
-          and community-wide. Community-wide rules are for each community to make and they can be as
-          strict or as lax as they please, so long as they adhere to the site-wide rules.
+          Seddit, being a forum of forums, will naturally have two levels of moderation: site-wide
+          moderation (by admins) and community-level moderation (by moderators). The site-wide
+          rules are the minimum rules that all communities must follow. Communities can have
+          their own additional rules, but they cannot override or ignore the site-wide rules.
         </p>
         <h2>Site-wide rules:</h2>
         <ol>
           <li>
-            <strong>No spam.</strong> Sharing anything you've created or done on Discuit is
-            completely fine but please don't repeatedly share the same link or submit to irrelevant
-            communities. And don't use Discuit solely for self-promotion.
+            <strong>No spam.</strong> Sharing anything you've created or done on Seddit is
+            fine, but don't spam it across multiple
+            communities. And don't use Seddit solely for self-promotion.
           </li>
           <li>
             <strong>No porn.</strong> Please don't post anything with sexually explicit material,
@@ -72,8 +71,8 @@ const Guidelines = () => {
           or permanent suspension of the user accounts involved.
         </p>
         <p>
-          Discuit is a work in progress, and these rules are not set in stone. They may change in
-          the future as we gain more experience.
+          Seddit is a work in progress, and these rules are not set in stone. They may change in
+          the future based on community feedback and our own observations.
         </p>
       </main>
     </StaticPage>
