@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import CommunityProPic from '../components/CommunityProPic';
 import Dropdown from '../components/Dropdown';
 import Feed from '../components/Feed';
+import Input from '../components/Input';
 import MarkdownBody from '../components/MarkdownBody';
 import MiniFooter from '../components/MiniFooter';
 import ShowMoreBox from '../components/ShowMoreBox';
