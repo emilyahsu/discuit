@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -106,64 +107,98 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 
 // BotRespondToPost generates and posts a bot response to a post
 func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Community) error {
-	// Create a new context with timeout for the bot response
-	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Randomly choose between making a new post or responding to the comment
+	if rand.Float32() < 0.5 {
+		// Create a new context with timeout for the bot response
+		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 
-	// Get a random bot user
-	bot, err := GetRandomBotUser(botCtx, db)
-	if err != nil {
-		return fmt.Errorf("failed to get random bot user: %w", err)
-	}
-
-	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\nGenerate a short, low-quality post that would be controversial or harmful to this community. The post should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge.\n\nFormat your response exactly like this:\nTITLE: [Your clickbait title under 100 characters]\n\nBODY: [Your post content, max 3 sentences]",
-		community.Name,
-		community.About.String)
-
-	response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
-	if err != nil {
-		return err
-	}
-
-	// Parse the response to extract title and body
-	var title, body string
-	lines := strings.Split(response, "\n")
-	for i, line := range lines {
-		if strings.HasPrefix(strings.ToUpper(line), "TITLE:") {
-			title = strings.TrimSpace(strings.TrimPrefix(line, "TITLE:"))
-			// Look for body in subsequent lines
-			for j := i + 1; j < len(lines); j++ {
-				if strings.HasPrefix(strings.ToUpper(lines[j]), "BODY:") {
-					body = strings.TrimSpace(strings.TrimPrefix(lines[j], "BODY:"))
-					// Add any remaining lines to the body
-					if j+1 < len(lines) {
-						body += "\n" + strings.TrimSpace(strings.Join(lines[j+1:], "\n"))
-					}
-					break
-				}
-			}
-			break
+		// Get a random bot user
+		bot, err := GetRandomBotUser(botCtx, db)
+		if err != nil {
+			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
-	}
 
-	// Validate title and body
-	if title == "" || body == "" {
-		return fmt.Errorf("invalid bot response format: missing title or body")
-	}
-	if len(title) > 100 {
-		title = title[:100]
-	}
+		// Generate context for the bot
+		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\nGenerate a short, low-quality post that would be controversial or harmful to this community. The post should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge.\n\nFormat your response exactly like this:\nTITLE: [Your clickbait title under 100 characters]\n\nBODY: [Your post content, max 3 sentences]",
+			community.Name,
+			community.About.String)
 
-	// Create a new post in the same community
-	newPost, err := CreateTextPost(botCtx, db, bot.ID, community.ID, title, body)
-	if err != nil {
-		return err
-	}
+		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+		if err != nil {
+			return err
+		}
 
-	// Add an upvote to the post
-	if err := newPost.Vote(botCtx, db, bot.ID, true); err != nil {
-		return fmt.Errorf("failed to upvote bot post: %w", err)
+		// Parse the response to extract title and body
+		var title, body string
+		lines := strings.Split(response, "\n")
+		for i, line := range lines {
+			if strings.HasPrefix(strings.ToUpper(line), "TITLE:") {
+				title = strings.TrimSpace(strings.TrimPrefix(line, "TITLE:"))
+				// Look for body in subsequent lines
+				for j := i + 1; j < len(lines); j++ {
+					if strings.HasPrefix(strings.ToUpper(lines[j]), "BODY:") {
+						body = strings.TrimSpace(strings.TrimPrefix(lines[j], "BODY:"))
+						// Add any remaining lines to the body
+						if j+1 < len(lines) {
+							body += "\n" + strings.TrimSpace(strings.Join(lines[j+1:], "\n"))
+						}
+						break
+					}
+				}
+				break
+			}
+		}
+
+		// Validate title and body
+		if title == "" || body == "" {
+			return fmt.Errorf("invalid bot response format: missing title or body")
+		}
+		if len(title) > 100 {
+			title = title[:100]
+		}
+
+		// Create a new post in the same community
+		newPost, err := CreateTextPost(botCtx, db, bot.ID, community.ID, title, body)
+		if err != nil {
+			return err
+		}
+
+		// Add an upvote to the post
+		if err := newPost.Vote(botCtx, db, bot.ID, true); err != nil {
+			return fmt.Errorf("failed to upvote bot post: %w", err)
+		}
+	} else {
+		// Respond to the post with a comment
+		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Get a random bot user
+		bot, err := GetRandomBotUser(botCtx, db)
+		if err != nil {
+			return fmt.Errorf("failed to get random bot user: %w", err)
+		}
+
+		// Generate context for the bot
+		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			post.Title,
+			post.Body.String)
+
+		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+		if err != nil {
+			return err
+		}
+
+		// Add a new comment to the post
+		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, nil, response)
+		if err != nil {
+			return err
+		}
+
+		// Add an upvote to the comment
+		if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
+			return fmt.Errorf("failed to upvote bot comment: %w", err)
+		}
 	}
 
 	return nil
@@ -171,36 +206,71 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 
 // BotRespondToComment generates and posts a bot response to a comment
 func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *Comment) error {
-	// Create a new context with timeout for the bot response
-	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Randomly choose between making a new comment or replying to the user's comment
+	if rand.Float32() < 0.5 {
+		// Create a new context with timeout for the bot response
+		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 
-	// Get a random bot user
-	bot, err := GetRandomBotUser(botCtx, db)
-	if err != nil {
-		return fmt.Errorf("failed to get random bot user: %w", err)
-	}
+		// Get a random bot user
+		bot, err := GetRandomBotUser(botCtx, db)
+		if err != nil {
+			return fmt.Errorf("failed to get random bot user: %w", err)
+		}
 
-	// Generate context for the bot
-	prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
-		post.Title,
-		post.Body.String,
-		comment.Body)
+		// Generate context for the bot
+		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			post.Title,
+			post.Body.String,
+			comment.Body)
 
-	response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
-	if err != nil {
-		return err
-	}
+		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+		if err != nil {
+			return err
+		}
 
-	// Add a new comment to the post (not as a reply)
-	newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, nil, response)
-	if err != nil {
-		return err
-	}
+		// Add a new comment to the post (not as a reply)
+		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, nil, response)
+		if err != nil {
+			return err
+		}
 
-	// Add an upvote to the comment
-	if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
-		return fmt.Errorf("failed to upvote bot comment: %w", err)
+		// Add an upvote to the comment
+		if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
+			return fmt.Errorf("failed to upvote bot comment: %w", err)
+		}
+	} else {
+		// Reply directly to the user's comment
+		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Get a random bot user
+		bot, err := GetRandomBotUser(botCtx, db)
+		if err != nil {
+			return fmt.Errorf("failed to get random bot user: %w", err)
+		}
+
+		// Generate context for the bot
+		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment to reply to: %s\n\nGenerate a short, low-quality reply (max 2 sentences) that would be controversial or harmful to this discussion. The reply should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			post.Title,
+			post.Body.String,
+			comment.Body)
+
+		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+		if err != nil {
+			return err
+		}
+
+		// Add a new comment as a reply to the user's comment
+		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, &comment.ID, response)
+		if err != nil {
+			return err
+		}
+
+		// Add an upvote to the comment
+		if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
+			return fmt.Errorf("failed to upvote bot comment: %w", err)
+		}
 	}
 
 	return nil
