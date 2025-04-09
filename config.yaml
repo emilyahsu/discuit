@@ -34,9 +34,3 @@ disableForumCreation: false
 forumCreationReqPoints: 0
 maxForumsPerUser: 1
 imagesFolderPath: "images"
-
-# S3 configuration for image storage:
-s3AccessKey: "" # Required for S3 storage
-s3SecretKey: "" # Required for S3 storage
-s3Region: ""    # Required for S3 storage
-s3Bucket: ""    # Required for S3 storage

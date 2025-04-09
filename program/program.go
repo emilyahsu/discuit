@@ -45,28 +45,16 @@ func NewProgram(openDatabase bool) (*Program, error) {
 		return nil, fmt.Errorf("error parsing the config file: %w", err)
 	}
 
-	// Initialize image storage
-	if pg.conf.S3AccessKey != "" && pg.conf.S3SecretKey != "" && pg.conf.S3Region != "" && pg.conf.S3Bucket != "" {
-		// Use S3 storage
-		s3Store, err := images.NewS3Store(pg.conf.S3AccessKey, pg.conf.S3SecretKey, pg.conf.S3Region, pg.conf.S3Bucket)
-		if err != nil {
-			return nil, fmt.Errorf("error initializing S3 store: %w", err)
-		}
-		if err := images.RegisterStore(s3Store); err != nil {
-			return nil, fmt.Errorf("error registering S3 store: %w", err)
-		}
-	} else {
-		// Use disk storage
-		pg.imagesDir = "images" // in the working directory
-		if pg.conf.ImagesFolderPath != "" {
-			pg.imagesDir = pg.conf.ImagesFolderPath
-		}
-		pg.imagesDir, err = filepath.Abs(pg.imagesDir)
-		if err != nil {
-			return nil, fmt.Errorf("error attempting to set the images folder location (%s): %w", pg.imagesDir, err)
-		}
-		images.SetImagesRootFolder(pg.imagesDir)
+	// Set the images directory:
+	pg.imagesDir = "images" // in the working directory
+	if pg.conf.ImagesFolderPath != "" {
+		pg.imagesDir = pg.conf.ImagesFolderPath
 	}
+	pg.imagesDir, err = filepath.Abs(pg.imagesDir)
+	if err != nil {
+		return nil, fmt.Errorf("error attempting to set the images folder location (%s): %w", pg.imagesDir, err)
+	}
+	images.SetImagesRootFolder(pg.imagesDir)
 
 	pg.tr = taskrunner.New(pg.ctx)
 

@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/discuitnet/discuit/config"
 	msql "github.com/discuitnet/discuit/internal/sql"
 	"github.com/discuitnet/discuit/internal/uid"
 	"golang.org/x/exp/slices"
@@ -774,13 +773,4 @@ func (p *ImageProcessor) DeleteImage(id string) error {
 		}
 	}
 	return nil
-}
-
-// GetDefaultStore returns the store name to use for saving images.
-// Returns "s3" if S3 is configured, otherwise returns "disk".
-func GetDefaultStore(cfg *config.Config) string {
-	if cfg.S3AccessKey != "" && cfg.S3SecretKey != "" && cfg.S3Region != "" && cfg.S3Bucket != "" {
-		return "s3"
-	}
-	return "disk"
 }

@@ -76,12 +76,6 @@ type Config struct {
 	SubstackURL    string `yaml:"substackURL"`
 
 	WelcomeCommunity string `yaml:"welcomeCommunity"`
-
-	// S3 configuration for image storage
-	S3AccessKey string `yaml:"s3AccessKey"`
-	S3SecretKey string `yaml:"s3SecretKey"`
-	S3Region    string `yaml:"s3Region"`
-	S3Bucket    string `yaml:"s3Bucket"`
 }
 
 // Parse parses the yaml file at path and returns a Config.
@@ -169,12 +163,6 @@ func Parse(path string) (*Config, error) {
 		"DISCUIT_SUBSTACK_URL":    &c.SubstackURL,
 
 		"DISCUIT_USE_HTTP_COOKIES": &c.UseHTTPCookies,
-
-		// S3 configuration for image storage
-		"DISCUIT_S3_ACCESS_KEY": &c.S3AccessKey,
-		"DISCUIT_S3_SECRET_KEY": &c.S3SecretKey,
-		"DISCUIT_S3_REGION":     &c.S3Region,
-		"DISCUIT_S3_BUCKET":     &c.S3Bucket,
 	}
 
 	// Attempt to unmarshal the YAML file if it exists
