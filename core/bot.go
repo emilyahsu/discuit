@@ -26,7 +26,7 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 		"messages": []map[string]string{
 			{
 				"role":    "system",
-				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep it informal like it was written by a Reddit user, you don't have to use proper punctuation, capitalization, or even complete sentences.", personality),
+				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep responses concise and engaging.", personality),
 			},
 			{
 				"role":    "user",
@@ -117,7 +117,7 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 	}
 
 	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\nGenerate a short, low-quality Reddit post that would be controversial or harmful to this community. The post should be inflammatory, contain logical fallacies, and potentially spread misinformation. \n\nFormat your response exactly like this:\nTITLE: [Your title]\n\nBODY: [Your post content, under 50 characters]",
+	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\nGenerate a short, low-quality post that would be controversial or harmful to this community. The post should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge.\n\nFormat your response exactly like this:\nTITLE: [Your clickbait title under 100 characters]\n\nBODY: [Your post content, max 3 sentences]",
 		community.Name,
 		community.About.String)
 
@@ -182,7 +182,7 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	// Generate context for the bot
-	prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (under 30 tokens) that would be controversial or harmful to this Redditdiscussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation.",
+	prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
 		post.Title,
 		post.Body.String,
 		comment.Body)
