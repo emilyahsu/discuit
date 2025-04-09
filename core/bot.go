@@ -22,11 +22,11 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 	
 	// Prepare the request to ChatGPT API
 	reqBody := map[string]interface{}{
-		"model": "gpt-4o-mini",
+		"model": "gpt-3.5-turbo",
 		"messages": []map[string]string{
 			{
 				"role":    "system",
-				"content": fmt.Sprintf("You are a bot with the following personality: %s. Keep it informal like it was written by a Reddit user, you don't have to use proper punctuation, capitalization, or even complete sentences.", personality),
+				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep it informal like it was written by a Reddit user, you don't have to use proper punctuation, capitalization, or even complete sentences.", personality),
 			},
 			{
 				"role":    "user",
