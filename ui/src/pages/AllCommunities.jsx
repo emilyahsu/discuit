@@ -23,6 +23,7 @@ import LoginForm from '../views/LoginForm';
 import JoinButton from './Community/JoinButton';
 import { isInfiniteScrollingDisabled } from './Settings/devicePrefs';
 import CreateCommunity from '../components/CreateCommunity';
+import PropTypes from 'prop-types';
 
 const prepareText = (isMobile = false) => {
   const x = isMobile ? 'by filling out the form below' : 'by clicking on the button below';
@@ -228,3 +229,9 @@ const ListItem = React.memo(function ListItem({ community }) {
     </div>
   );
 });
+
+ListItem.propTypes = {
+  community: PropTypes.object.isRequired,
+};
+
+export default AllCommunities;
