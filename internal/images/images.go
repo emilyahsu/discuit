@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/discuitnet/discuit/config"
 	msql "github.com/discuitnet/discuit/internal/sql"
 	"github.com/discuitnet/discuit/internal/uid"
 	"golang.org/x/exp/slices"
@@ -775,18 +776,11 @@ func (p *ImageProcessor) DeleteImage(id string) error {
 	return nil
 }
 
-// RegisterStore registers a new store. The store's name must be unique.
-func RegisterStore(s store) error {
-	for _, store := range stores {
-		if store.name() == s.name() {
-			return fmt.Errorf("a store with the name %v is already registered", s.name())
-		}
+// GetDefaultStore returns the store name to use for saving images.
+// Returns "s3" if S3 is configured, otherwise returns "disk".
+func GetDefaultStore(cfg *config.Config) string {
+	if cfg.S3AccessKey != "" && cfg.S3SecretKey != "" && cfg.S3Region != "" && cfg.S3Bucket != "" {
+		return "s3"
 	}
-	stores = append(stores, s)
-	return nil
-}
-
-// NewS3Store creates a new S3 store with the given credentials.
-func NewS3Store(accessKey, secretKey, region, bucket string) (store, error) {
-	return newS3Store(accessKey, secretKey, region, bucket)
+	return "disk"
 }

@@ -195,11 +195,6 @@ var selectPostCols = []string{
 	"posts.deleted_at",
 	"posts.deleted_by",
 	"posts.deleted_as",
-	"posts.no_comments",
-	"posts.deleted_content",
-	"posts.deleted_content_at",
-	"posts.deleted_content_by",
-	"posts.deleted_content_as",
 }
 
 var selectPostJoins = []string{
@@ -1766,7 +1761,12 @@ func UpdateAllPostsHotness(ctx context.Context, db *sql.DB) error {
 func SavePostImage(ctx context.Context, db *sql.DB, authorID uid.ID, image []byte) (*images.ImageRecord, error) {
 	var imageID uid.ID
 	err := msql.Transact(ctx, db, func(tx *sql.Tx) (err error) {
-		id, err := images.SaveImageTx(ctx, tx, "disk", image, &images.ImageOptions{
+		// Use "s3" store if S3 is configured
+		storeName := "disk"
+		if s3Store := images.GetStore("s3"); s3Store != nil {
+			storeName = "s3"
+		}
+		id, err := images.SaveImageTx(ctx, tx, storeName, image, &images.ImageOptions{
 			Width:  5000,
 			Height: 5000,
 			Format: images.ImageFormatJPEG,
