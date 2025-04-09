@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/discuitnet/discuit/internal/uid"
 )
 
 // GenerateBotResponse generates a response using ChatGPT API
@@ -27,7 +29,7 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 		"messages": []map[string]string{
 			{
 				"role":    "system",
-				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep responses concise and engaging.", personality),
+				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep it informal; don't use proper punctuation, capitalization, or even complete sentences. Don't use hashtags.", personality),
 			},
 			{
 				"role":    "user",
@@ -119,10 +121,40 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
 
+		// Format community rules
+		var rulesText string
+		if len(community.Rules) > 0 {
+			rulesText = "Community Rules:\n"
+			for _, rule := range community.Rules {
+				rulesText += fmt.Sprintf("- %s", rule.Rule)
+				if rule.Description.Valid && rule.Description.String != "" {
+					rulesText += fmt.Sprintf(": %s", rule.Description.String)
+				}
+				rulesText += "\n"
+			}
+		}
+
+		// Get the last 5 posts from the community
+		recentPosts, err := GetRecentPosts(botCtx, db, community.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get recent posts: %w", err)
+		}
+
+		// Format recent posts as context
+		var recentPostsText string
+		if len(recentPosts) > 0 {
+			recentPostsText = "Recent Posts in this Community:\n"
+			for i, p := range recentPosts {
+				recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, p.Title, p.Body.String)
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\nGenerate a short, low-quality post that would be controversial or harmful to this community. The post should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge.\n\nFormat your response exactly like this:\nTITLE: [Your clickbait title under 100 characters]\n\nBODY: [Your post content, max 3 sentences]",
+		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still folllow the rules and norms set by recent posts for what type of content is socially acceptable. Write in all lowercase and don't use proper punctuation or hashtags. \n\nFormat your response exactly like this:\nTITLE: [title in lowercase]\n\nBODY: [post content, max 300 characters]",
 			community.Name,
-			community.About.String)
+			community.About.String,
+			rulesText,
+			recentPostsText)
 
 		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
 		if err != nil {
@@ -179,8 +211,22 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
 
+		// Format community rules
+		var rulesText string
+		if len(community.Rules) > 0 {
+			rulesText = "Community Rules:\n"
+			for _, rule := range community.Rules {
+				rulesText += fmt.Sprintf("- %s", rule.Rule)
+				if rule.Description.Valid && rule.Description.String != "" {
+					rulesText += fmt.Sprintf(": %s", rule.Description.String)
+				}
+				rulesText += "\n"
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			rulesText,
 			post.Title,
 			post.Body.String)
 
@@ -218,8 +264,31 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
 
+		// Get community rules
+		community, err := GetCommunityByID(botCtx, db, post.CommunityID, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get community: %w", err)
+		}
+		if err := community.FetchRules(botCtx, db); err != nil {
+			return fmt.Errorf("failed to fetch community rules: %w", err)
+		}
+
+		// Format community rules
+		var rulesText string
+		if len(community.Rules) > 0 {
+			rulesText = "Community Rules:\n"
+			for _, rule := range community.Rules {
+				rulesText += fmt.Sprintf("- %s", rule.Rule)
+				if rule.Description.Valid && rule.Description.String != "" {
+					rulesText += fmt.Sprintf(": %s", rule.Description.String)
+				}
+				rulesText += "\n"
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 sentences) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			rulesText,
 			post.Title,
 			post.Body.String,
 			comment.Body)
@@ -250,8 +319,31 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
 
+		// Get community rules
+		community, err := GetCommunityByID(botCtx, db, post.CommunityID, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get community: %w", err)
+		}
+		if err := community.FetchRules(botCtx, db); err != nil {
+			return fmt.Errorf("failed to fetch community rules: %w", err)
+		}
+
+		// Format community rules
+		var rulesText string
+		if len(community.Rules) > 0 {
+			rulesText = "Community Rules:\n"
+			for _, rule := range community.Rules {
+				rulesText += fmt.Sprintf("- %s", rule.Rule)
+				if rule.Description.Valid && rule.Description.String != "" {
+					rulesText += fmt.Sprintf(": %s", rule.Description.String)
+				}
+				rulesText += "\n"
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Post Title: %s\nPost Content: %s\nComment to reply to: %s\n\nGenerate a short, low-quality reply (max 2 sentences) that would be controversial or harmful to this discussion. The reply should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nComment to reply to: %s\n\nGenerate a short, low-quality reply (max 2 lines) that would be controversial or harmful to this discussion. The reply should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+			rulesText,
 			post.Title,
 			post.Body.String,
 			comment.Body)
@@ -274,4 +366,39 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	return nil
+}
+
+// GetRecentPosts retrieves the 5 most recent posts from a community
+func GetRecentPosts(ctx context.Context, db *sql.DB, communityID uid.ID) ([]*Post, error) {
+	query := `
+		SELECT p.id, p.title, p.body
+		FROM posts p
+		WHERE p.community_id = ? AND p.deleted = false
+		ORDER BY p.created_at DESC
+		LIMIT 5
+	`
+	rows, err := db.QueryContext(ctx, query, communityID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query recent posts: %w", err)
+	}
+	defer rows.Close()
+
+	var posts []*Post
+	for rows.Next() {
+		post := &Post{}
+		err := rows.Scan(
+			&post.ID,
+			&post.Title,
+			&post.Body,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan post: %w", err)
+		}
+		posts = append(posts, post)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating posts: %w", err)
+	}
+
+	return posts, nil
 } 
