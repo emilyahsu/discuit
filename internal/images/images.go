@@ -774,3 +774,19 @@ func (p *ImageProcessor) DeleteImage(id string) error {
 	}
 	return nil
 }
+
+// RegisterStore registers a new store. The store's name must be unique.
+func RegisterStore(s store) error {
+	for _, store := range stores {
+		if store.name() == s.name() {
+			return fmt.Errorf("a store with the name %v is already registered", s.name())
+		}
+	}
+	stores = append(stores, s)
+	return nil
+}
+
+// NewS3Store creates a new S3 store with the given credentials.
+func NewS3Store(accessKey, secretKey, region, bucket string) (store, error) {
+	return newS3Store(accessKey, secretKey, region, bucket)
+}
