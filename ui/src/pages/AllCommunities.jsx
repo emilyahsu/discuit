@@ -184,9 +184,13 @@ const CommunityCreationCard = () => {
 
 const ListItem = React.memo(function ListItem({ community }) {
   const to = `/${community.name}`;
-
   const history = useHistory();
   const ref = useRef();
+
+  // Get the latest community state from Redux using the community name as the key
+  const latestCommunity = useSelector((state) => 
+    state.communities.items[community.name] || community
+  );
 
   const handleClick = (e) => {
     if (e.target.tagName !== 'BUTTON') {
@@ -204,8 +208,8 @@ const ListItem = React.memo(function ListItem({ community }) {
       <div className="comms-list-item-left">
         <CommunityProPic
           className="is-no-hover"
-          name={community.name}
-          proPic={community.proPic}
+          name={latestCommunity.name}
+          proPic={latestCommunity.proPic}
           size="large"
         />
       </div>
@@ -216,14 +220,14 @@ const ListItem = React.memo(function ListItem({ community }) {
             className="link-reset comms-list-item-name-name"
             onClick={(e) => e.preventDefault()}
           >
-            {community.name}
+            {latestCommunity.name}
           </a>
-          <JoinButton className="comms-list-item-join" community={community} />
+          <JoinButton className="comms-list-item-join" community={latestCommunity} />
         </div>
-        <div className="comms-list-item-count">{`${community.noMembers} members`}</div>
+        <div className="comms-list-item-count">{`${latestCommunity.noMembers} members`}</div>
         <div className="comms-list-item-about">
           <ShowMoreBox maxHeight="120px">
-            <MarkdownBody>{community.about}</MarkdownBody>
+            <MarkdownBody>{latestCommunity.about}</MarkdownBody>
           </ShowMoreBox>
         </div>
       </div>
