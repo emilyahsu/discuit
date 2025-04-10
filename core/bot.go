@@ -25,12 +25,8 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 	
 	// Prepare the request to ChatGPT API
 	reqBody := map[string]interface{}{
-		"model": "gpt-3.5-turbo",
+		"model": "gpt-4o-mini",
 		"messages": []map[string]string{
-			{
-				"role":    "system",
-				"content": fmt.Sprintf("You are a community member with the following personality: %s. Keep it informal; don't use proper punctuation, capitalization, or even complete sentences. Don't use hashtags.", personality),
-			},
 			{
 				"role":    "user",
 				"content": prompt,
@@ -150,7 +146,7 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		}
 
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still folllow the rules and norms set by recent posts for what type of content is socially acceptable. Write in all lowercase and don't use proper punctuation or hashtags. \n\nFormat your response exactly like this:\nTITLE: [title in lowercase]\n\nBODY: [post content, max 300 characters]",
+		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don’t repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use generic phrases like “let’s be real, overrated, wake up people, joke” or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. \n\nFormat your response exactly like this: \nTITLE: [title]\n\n BODY: [post content]",
 			community.Name,
 			community.About.String,
 			rulesText,
@@ -224,8 +220,9 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 			}
 		}
 
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String)
@@ -286,12 +283,26 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			}
 		}
 
+		// Get all comments on the post
+		if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
+			return fmt.Errorf("failed to get post comments: %w", err)
+		}
+
+		// Format comments as context
+		var commentsText string
+		if len(post.Comments) > 0 {
+			commentsText = "Comments on this Post:\n"
+			for i, c := range post.Comments {
+				commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, c.Author.Username, c.Body)
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nComment: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion. The comment should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String,
-			comment.Body)
+			commentsText)
 
 		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
 		if err != nil {
@@ -341,11 +352,26 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			}
 		}
 
+		// Get all comments on the post
+		if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
+			return fmt.Errorf("failed to get post comments: %w", err)
+		}
+
+		// Format comments as context
+		var commentsText string
+		if len(post.Comments) > 0 {
+			commentsText = "Comments on this Post:\n"
+			for i, c := range post.Comments {
+				commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, c.Author.Username, c.Body)
+			}
+		}
+
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nComment to reply to: %s\n\nGenerate a short, low-quality reply (max 2 lines) that would be controversial or harmful to this discussion. The reply should be inflammatory, contain logical fallacies, and potentially spread misinformation. Make it sound like it was written by someone with strong opinions but little knowledge:",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\nComment to reply to: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String,
+			commentsText,
 			comment.Body)
 
 		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
