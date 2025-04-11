@@ -106,6 +106,10 @@ func (pg *Program) startBackgroundTasks(delay time.Duration) {
 		return core.RecordBasicSiteStats(ctx, pg.db)
 	}, time.Hour, false)
 
+	// Add bot scheduler
+	botScheduler := core.NewBotScheduler(pg.db)
+	botScheduler.Start(pg.ctx)
+
 	go func() {
 		time.Sleep(delay)
 		pg.tr.Start()
