@@ -29,10 +29,6 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 		"model": "gpt-4o-mini",
 		"messages": []map[string]string{
 			{
-				"role":    "system",
-				"content": personality,
-			},
-			{
 				"role":    "user",
 				"content": prompt,
 			},

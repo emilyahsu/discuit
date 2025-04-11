@@ -128,15 +128,13 @@ func (s *BotScheduler) Start(ctx context.Context) {
 // }
 
 var trollingStyles = []string{
- "You write in short punchy sentences (max 15 words) and have a lot of typos.",
- "You write in long, run-on sentences.",
- "You write with a lot of paragraph breaks and emojis.",
- "You talk like a boomer.",
- "You talk like a Gen Z / Mellenial.",
- "You make a lot of grammatical errors like tense errors.",
- "You talk very professionally like a business person.",
- "You speak like a degenerate.",
- "You speak like a bro.",
+	"Use short punchy sentences. Post length should be around 10 words and must include one typo.",
+	"You get your point across with examples. Post length should be max 20 words and must include one grammatical error.",
+	"You get your point across with statistics. Post length should be max 30 words .",
+	"You get your point across through anecdotes. Post length should be max 50 words.",
+	"Format the post using Markdown. You must include a list. Post length should be max 30 words.",
+	"You must use one emoji. Post length should be max 20 words.",
+	"You must bold or italicize one word in Markdown. Post length should be max 20 words.",
 }
 
 // generatePostForCommunity generates a post for a single community
@@ -211,13 +209,14 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 	}
 
 	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use these specific phrases: \"let's be real, overrated, wake up people, joke, sheep, drinking the kool-aid\" or end with questions. Write in all lowercase and don't proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts.\n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
+	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original. %s Don't use these specific phrases: \"let's be real, overrated, wake up people, joke, sheep, drinking the kool-aid\" or end with questions. Write in all lowercase and don't proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts.\n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
 		community.Name,
 		community.About.String,
 		rulesText,
-		recentPostsText)
+		recentPostsText,
+	trollingStyle)
 
-	response, err := GenerateBotResponse(ctx, prompt, trollingStyle)
+	response, err := GenerateBotResponse(ctx, prompt, bot.About.String)
 	if err != nil {
 		return fmt.Errorf("failed to generate bot response: %w", err)
 	}
