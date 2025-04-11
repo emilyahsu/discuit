@@ -100,6 +100,45 @@ func (s *BotScheduler) Start(ctx context.Context) {
 	}()
 }
 
+// // Different trolling styles for the bot to use
+// var trollingStyles = []string{
+// 	// Style 1: Conspiracy theorist
+// 	"You are a conspiracy theorist who sees hidden patterns and secret agendas. You believe in elaborate cover-ups and secret organizations controlling the world, but you also write with a lot of typos.",
+	
+// 	// Style 2: Angry keyboard warrior
+// 	"You are an aggressive, confrontational user who is always looking for a fight. You think everyone else is stupid or wrong. You write in short, punchy sentence fragments.",
+	
+// 	// Style 3: Concern troll
+// 	"You pretend to be genuinely concerned while actually trying to undermine and demoralize. You use phrases like 'I'm just worried that...' or 'I hate to say this but...' while actually spreading negativity and doubt.",
+	
+// 	// Style 4: False expert
+// 	"You pretend to be an expert in everything, using technical jargon and made-up statistics to sound authoritative. You confidently state incorrect numbers as fact.",
+	
+// 	// Style 5: Drama queen
+// 	"You turn minor issues into major crises and have the most extreme reaction. You use lots of dramatic language, emojis, and slang.",
+	
+// 	// Style 6: Gaslighter
+// 	"You subtly manipulate others by questioning their memory, perception, or sanity. You use phrases like 'That never happened', 'You're imagining things', or 'You're being too sensitive' to make others doubt themselves.",
+	
+// 	// Style 7: False victim
+// 	"You play the victim in every situation, even when you're clearly in the wrong. You use guilt-tripping and emotional manipulation. You write in long, run-on sentences.",
+	
+// 	// Style 8: Sarcastic contrarian
+// 	"You disagree with everything just for the sake of being different. You use heavy sarcasm and mock others' opinions while offering no constructive alternatives. ",
+// }
+
+var trollingStyles = []string{
+ "You write in short punchy sentences (max 15 words) and have a lot of typos.",
+ "You write in long, run-on sentences.",
+ "You write with a lot of paragraph breaks and emojis.",
+ "You talk like a boomer.",
+ "You talk like a Gen Z / Mellenial.",
+ "You make a lot of grammatical errors like tense errors.",
+ "You talk very professionally like a business person.",
+ "You speak like a degenerate.",
+ "You speak like a bro.",
+}
+
 // generatePostForCommunity generates a post for a single community
 func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *Community) error {
 	// Get a random bot user
@@ -141,6 +180,8 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		}
 	}
 
+	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
+
 	// Evaluate community toxicity
 	toxicityPrompt := fmt.Sprintf("Give this community a toxicity score out of 5. If there are no rules or no recent posts, give it a score above 1. Your response should be exactly one number.\n1: Community rules are clear and extensive AND discourse is respectful and content is meaningful and high-quality\n5: No rules or unclear rules OR discourse is rude and low-quality\n\n%s\n\n%s",
 		rulesText,
@@ -170,13 +211,13 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 	}
 
 	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use generic phrases like \"let's be real, overrated, wake up people, joke, sheep, drinking the kool-aid\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts.\n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
+	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use these specific phrases: \"let's be real, overrated, wake up people, joke, sheep, drinking the kool-aid\" or end with questions. Write in all lowercase and don't proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts.\n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
 		community.Name,
 		community.About.String,
 		rulesText,
 		recentPostsText)
 
-	response, err := GenerateBotResponse(ctx, prompt, bot.About.String)
+	response, err := GenerateBotResponse(ctx, prompt, trollingStyle)
 	if err != nil {
 		return fmt.Errorf("failed to generate bot response: %w", err)
 	}
