@@ -109,8 +109,8 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 	// 50% chance to comment
 	if rand.Float32() < 0.5 {
 		// Add random delay between 5-15 minutes
-		// delay := time.Duration(5+rand.Intn(10)) * time.Minute
-		// time.Sleep(delay)
+		delay := time.Duration(5+rand.Intn(10)) * time.Minute
+		time.Sleep(delay)
 
 		// Create a new context with timeout for the bot response
 		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
