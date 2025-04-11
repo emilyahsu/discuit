@@ -117,6 +117,11 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 			return fmt.Errorf("failed to get random bot user: %w", err)
 		}
 
+		// Fetch community rules
+		if err := community.FetchRules(botCtx, db); err != nil {
+			return fmt.Errorf("failed to fetch community rules: %w", err)
+		}
+
 		// Format community rules
 		var rulesText string
 		if len(community.Rules) > 0 {
@@ -146,7 +151,7 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		}
 
 		// Generate context for the bot
-		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don’t repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use generic phrases like “let’s be real, overrated, wake up people, joke” or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. \n\nFormat your response exactly like this: \nTITLE: [title]\n\n BODY: [post content]",
+		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original, experiment with formatting. Randomise post length between 10 and 50 words. Don't use generic phrases like \"let's be real, overrated, wake up people, joke\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts. \n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
 			community.Name,
 			community.About.String,
 			rulesText,
@@ -222,7 +227,7 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 
 
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String)
@@ -298,7 +303,7 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		}
 
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don't repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String,
@@ -367,7 +372,7 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		}
 
 		// Generate context for the bot
-		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\nComment to reply to: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don’t repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
+		prompt := fmt.Sprintf("%s\nPost Title: %s\nPost Content: %s\n%s\nComment to reply to: %s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don't repeat points already made by other users; be original. Give me the comment only, no quotes. Write in all lowercase and don't use proper punctuation or hashtags.",
 			rulesText,
 			post.Title,
 			post.Body.String,
