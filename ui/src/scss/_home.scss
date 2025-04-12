@@ -428,7 +428,6 @@ a {
         padding: 0 var(--padding-hor);
     }
     &.is-pinned {
-        .post-card-text,
         .post-image,
         .image-gallery {
             display: none;
@@ -602,50 +601,6 @@ a {
                     border: 1px solid transparent;
                 }
             }
-        }
-        @include mixins.mobile {
-            .post-card-heading {
-                margin-top: 6px;
-            }
-            .post-card-bottom {
-                padding-top: 2px;
-                padding-bottom: 6px;
-                .left {
-                    .button,
-                    button {
-                        svg {
-                            --button-icon-size: 16px;
-                        }
-                        span {
-                            margin-left: 6px;
-                            margin-right: 6px;
-                        }
-                    }
-                }
-            }
-            .post-card-title {
-                margin-top: 0;
-                flex-direction: row;
-                justify-content: space-between;
-                .post-card-title-main {
-                    font-size: var(--fs);
-                }
-            }
-            .post-card-heading-details {
-                > * {
-                    font-size: 12.5px;
-                }
-            }
-            .post-card-bottom {
-                font-size: 12.5px;
-            }
-        }
-        .profile-picture {
-            width: 18px;
-            height: 18px;
-        }
-        .community-link span {
-            margin-left: 2px;
         }
     }
     &.is-in-modtools {
