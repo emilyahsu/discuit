@@ -24,10 +24,7 @@ const Guidelines = () => {
             fine, but don't spam it across multiple
             communities. And don't use Seddit solely for self-promotion.
           </li>
-          <li>
-            <strong>No porn.</strong> Please don't post anything with sexually explicit material,
-            including nudity and depictions of sexual acts.
-          </li>
+          
           <li>
             <p>
               <strong>No racism or hate.</strong> Don't post anything that promotes violence or
