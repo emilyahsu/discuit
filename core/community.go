@@ -350,7 +350,7 @@ func GetCommunities(ctx context.Context, db *sql.DB, sort CommunitiesSort, set s
 	case CommunitiesSortOld:
 		order_by = "ORDER BY communities.created_at "
 	case CommunitiesSortSize:
-		order_by = "ORDER BY communities.no_members DESC "
+		order_by = "ORDER BY communities.no_members ASC "
 	case CommunitiesSortNameAsc:
 		order_by = "ORDER BY communities.name_lc "
 	case CommunitiesSortNameDsc:
