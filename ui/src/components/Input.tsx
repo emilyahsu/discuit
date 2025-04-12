@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import React, { forwardRef, useMemo, useState } from 'react';
+import { useGraphemeCount } from '../hooks';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
@@ -32,13 +33,28 @@ export const InputWithCount = ({
   value?: string;
   onChange?: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
 }) => {
-  const length = value ? value.length : 0;
+  const length = useGraphemeCount(value || '');
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (onChange) {
+      onChange(e);
+    }
+  };
+
   return (
     <div className={clsx('input-with-limit', className)}>
       {textarea ? (
-        <textarea value={value} onChange={onChange} {...props}></textarea>
+        <textarea 
+          value={value} 
+          onChange={handleChange} 
+          {...props}
+        />
       ) : (
-        <input type={type} value={value} onChange={onChange} {...props} />
+        <input 
+          type={type} 
+          value={value} 
+          onChange={handleChange} 
+          {...props} 
+        />
       )}
       <div className="input-count">{`${length} / ${maxLength}`}</div>
     </div>
@@ -50,14 +66,13 @@ export function useInputMaxLength(maxLength: number, initial = '') {
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | string
   ) => {
-    let value = '';
+    let newValue = '';
     if (typeof event === 'string') {
-      value = event;
+      newValue = event;
     } else {
-      event.preventDefault();
-      value = event.target.value;
+      newValue = event.target.value;
     }
-    setValue(value.slice(0, maxLength));
+    setValue(newValue.slice(0, maxLength));
   };
   return [value, handleChange];
 }

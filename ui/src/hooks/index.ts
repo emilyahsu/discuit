@@ -1,4 +1,4 @@
-import { useEffect, useInsertionEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useInsertionEffect, useReducer, useRef, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useHistory, useLocation } from 'react-router';
 import { APIError, mfetch, mfetchjson, usernameLegalLetters } from '../helper';
@@ -14,6 +14,17 @@ import {
   unmuteUser,
 } from '../slices/mainSlice';
 import { selectUser, userAdded } from '../slices/usersSlice';
+
+// Add type definition for Intl.Segmenter
+declare global {
+  interface Intl {
+    Segmenter: {
+      new (locale: string, options: { granularity: 'grapheme' }): {
+        segment(text: string): Iterable<{ segment: string }>;
+      };
+    };
+  }
+}
 
 /**
  * Run a callback function after a specific amount of time.
@@ -480,3 +491,15 @@ export function useFetchUsersLists(username: string, showSnackAlertOnError = tru
     error,
   };
 }
+
+/**
+ * Hook that counts the number of grapheme clusters in a string, properly handling emojis and other multi-character sequences
+ */
+export const useGraphemeCount = (text: string): number => {
+  return useMemo(() => {
+    // Use Intl.Segmenter to properly count grapheme clusters
+    const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+    const segments = Array.from(segmenter.segment(text));
+    return segments.length;
+  }, [text]);
+};
