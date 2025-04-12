@@ -21,7 +21,7 @@ const CommunityCard = ({ community }) => {
           <div className="about-comm-head-right">
             <div className="about-comm-name">{name}</div>
             <div className="about-comm-no-members">
-              {stringCount(community.noMembers, false, 'member')}
+              {`${community.noMembers}/11 members`}
             </div>
           </div>
         </Link>

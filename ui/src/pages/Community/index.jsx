@@ -191,7 +191,7 @@ const Community = () => {
           <div className="comm-main-title">
             <h1>{community.name}</h1>
             <div className="comm-main-followers">
-              {stringCount(community.noMembers, false, 'member')}
+              {`${community.noMembers}/11 members`}
             </div>
             <div className="comm-main-description">
               <ShowMoreBox showButton maxHeight="120px">

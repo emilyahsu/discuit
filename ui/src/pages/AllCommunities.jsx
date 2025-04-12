@@ -224,7 +224,7 @@ const ListItem = React.memo(function ListItem({ community }) {
           </a>
           <JoinButton className="comms-list-item-join" community={latestCommunity} />
         </div>
-        <div className="comms-list-item-count">{`${latestCommunity.noMembers} members`}</div>
+        <div className="comms-list-item-count">{`${latestCommunity.noMembers}/11 members`}</div>
         <div className="comms-list-item-about">
           <ShowMoreBox maxHeight="120px">
             <MarkdownBody>{latestCommunity.about}</MarkdownBody>
