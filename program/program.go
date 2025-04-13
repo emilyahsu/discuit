@@ -56,6 +56,11 @@ func NewProgram(openDatabase bool) (*Program, error) {
 	}
 	images.SetImagesRootFolder(pg.imagesDir)
 
+	// Initialize S3 store if enabled
+	if err := images.InitS3Store(pg.conf); err != nil {
+		return nil, fmt.Errorf("error initializing S3 store: %w", err)
+	}
+
 	pg.tr = taskrunner.New(pg.ctx)
 
 	if openDatabase {

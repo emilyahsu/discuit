@@ -63,6 +63,15 @@ type Config struct {
 	// The location where images are saved on disk.
 	ImagesFolderPath string `yaml:"imagesFolderPath"`
 
+	// S3 configuration
+	S3Enabled      bool   `yaml:"s3Enabled"`
+	S3Region       string `yaml:"s3Region"`
+	S3Bucket       string `yaml:"s3Bucket"`
+	S3AccessKey    string `yaml:"s3AccessKey"`
+	S3SecretKey    string `yaml:"s3SecretKey"`
+	S3Endpoint     string `yaml:"s3Endpoint"` // Optional custom endpoint for S3-compatible services
+	S3PathPrefix   string `yaml:"s3PathPrefix"` // Optional prefix for all S3 paths
+
 	MaxImagesPerPost int `yaml:"maxImagesPerPost"`
 
 	// For the front-end:
@@ -152,6 +161,15 @@ func Parse(path string) (*Config, error) {
 		// The location where images are saved on disk.
 		"DISCUIT_IMAGES_FOLDER_PATH": &c.ImagesFolderPath,
 
+		// S3 configuration
+		"DISCUIT_S3_ENABLED":    &c.S3Enabled,
+		"DISCUIT_S3_REGION":     &c.S3Region,
+		"DISCUIT_S3_BUCKET":     &c.S3Bucket,
+		"DISCUIT_S3_ACCESS_KEY": &c.S3AccessKey,
+		"DISCUIT_S3_SECRET_KEY": &c.S3SecretKey,
+		"DISCUIT_S3_ENDPOINT":   &c.S3Endpoint,
+		"DISCUIT_S3_PATH_PREFIX": &c.S3PathPrefix,
+
 		// For the front-end:
 		"DISCUIT_CAPTCHA_SITEKEY": &c.CaptchaSiteKey,
 		"DISCUIT_EMAIL_CONTACT":   &c.EmailContact,
@@ -234,4 +252,39 @@ func AddressValid(addr string) bool {
 	}
 	_, err := strconv.Atoi(addr[s+1:])
 	return err == nil
+}
+
+// GetS3Enabled returns whether S3 storage is enabled
+func (c *Config) GetS3Enabled() bool {
+	return c.S3Enabled
+}
+
+// GetS3Region returns the S3 region
+func (c *Config) GetS3Region() string {
+	return c.S3Region
+}
+
+// GetS3Bucket returns the S3 bucket name
+func (c *Config) GetS3Bucket() string {
+	return c.S3Bucket
+}
+
+// GetS3AccessKey returns the S3 access key
+func (c *Config) GetS3AccessKey() string {
+	return c.S3AccessKey
+}
+
+// GetS3SecretKey returns the S3 secret key
+func (c *Config) GetS3SecretKey() string {
+	return c.S3SecretKey
+}
+
+// GetS3Endpoint returns the S3 endpoint
+func (c *Config) GetS3Endpoint() string {
+	return c.S3Endpoint
+}
+
+// GetS3PathPrefix returns the S3 path prefix
+func (c *Config) GetS3PathPrefix() string {
+	return c.S3PathPrefix
 }

@@ -380,7 +380,7 @@ func mergePinnedPosts(ctx context.Context, db *sql.DB, viewer, community *uid.ID
 		return rs, nil
 	}
 
-	pinned, err := getPinnedPosts(ctx, db, viewer, community)
+	pinned, err := getPinnedPosts(ctx, db, community, viewer)
 	if err != nil {
 		return nil, err
 	}
@@ -868,4 +868,49 @@ func getCommentsPostTitles(ctx context.Context, db *sql.DB, comments []*Comment,
 	}
 
 	return nil
+}
+
+// getPinnedPosts returns pinned posts for a community or site-wide
+func getPinnedPosts(ctx context.Context, db *sql.DB, communityID *uid.ID, viewer *uid.ID) ([]*Post, error) {
+	var where string
+	var args []any
+
+	if communityID != nil {
+		where = "WHERE pinned_posts.community_id = ?"
+		args = append(args, communityID)
+	} else {
+		where = "WHERE pinned_posts.is_site_wide = true"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT posts.id FROM posts
+		INNER JOIN pinned_posts ON posts.id = pinned_posts.post_id
+		%s
+		ORDER BY posts.created_at DESC
+	`, where)
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pinned posts: %w", err)
+	}
+	defer rows.Close()
+
+	var postIDs []uid.ID
+	for rows.Next() {
+		var id uid.ID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan post ID: %w", err)
+		}
+		postIDs = append(postIDs, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating pinned posts: %w", err)
+	}
+
+	if len(postIDs) == 0 {
+		return nil, nil
+	}
+
+	return GetPostsByIDs(ctx, db, viewer, false, postIDs...)
 }

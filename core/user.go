@@ -985,7 +985,7 @@ func (u *User) DeleteProPic(ctx context.Context, db *sql.DB) error {
 	})
 }
 
-func (u *User) UpdateProPic(ctx context.Context, db *sql.DB, image []byte) error {
+func (u *User) UpdateProPic(ctx context.Context, db *sql.DB, image []byte, s3Enabled bool) error {
 	if u.Deleted {
 		return ErrUserDeleted
 	}
@@ -995,7 +995,8 @@ func (u *User) UpdateProPic(ctx context.Context, db *sql.DB, image []byte) error
 		if err := u.DeleteProPicTx(ctx, db, tx); err != nil {
 			return err
 		}
-		imageID, err := images.SaveImageTx(ctx, tx, "disk", image, &images.ImageOptions{
+		storeName := images.GetDefaultStoreName(s3Enabled)
+		imageID, err := images.SaveImageTx(ctx, tx, storeName, image, &images.ImageOptions{
 			Width:  2000,
 			Height: 2000,
 			Format: images.ImageFormatJPEG,

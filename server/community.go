@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -224,18 +225,25 @@ func (s *Server) joinCommunity(w *responseWriter, r *request) error {
 		Leave       bool   `json:"leave"`
 	}{}
 	if err := r.unmarshalJSONBody(&req); err != nil {
+		log.Printf("Error unmarshaling join request: %v, request body: %v", err, r.req.Body)
 		return err
 	}
 
+	log.Printf("Join request - CommunityID: %v, Leave: %v, User: %v", req.CommunityID, req.Leave, *r.viewer)
+
 	user, err := core.GetUser(r.ctx, s.db, *r.viewer, nil)
 	if err != nil {
+		log.Printf("Error getting user: %v", err)
 		return err
 	}
 
 	community, err := core.GetCommunityByID(r.ctx, s.db, req.CommunityID, r.viewer)
 	if err != nil {
+		log.Printf("Error getting community: %v", err)
 		return err
 	}
+
+	log.Printf("Community found - ID: %v, Name: %v, Members: %v", community.ID, community.Name, community.NumMembers)
 
 	if req.Leave {
 		err = community.Leave(r.ctx, s.db, user.ID)
@@ -243,12 +251,14 @@ func (s *Server) joinCommunity(w *responseWriter, r *request) error {
 		err = community.Join(r.ctx, s.db, user.ID)
 	}
 	if err != nil {
+		log.Printf("Error joining/leaving community: %v", err)
 		return err
 	}
 
 	community.ViewerJoined = msql.NewNullBool(!req.Leave)
 	community.ViewerMod = msql.NewNullBool(false)
 
+	log.Printf("Successfully processed join/leave request")
 	return w.writeJSON(community)
 }
 
@@ -756,7 +766,7 @@ func (s *Server) handleCommunityProPic(w *responseWriter, r *request) error {
 		if err != nil {
 			return err
 		}
-		if err = comm.UpdateProPic(r.ctx, s.db, buf); err != nil {
+		if err = comm.UpdateProPic(r.ctx, s.db, buf, s.config.S3Enabled); err != nil {
 			return err
 		}
 	} else if r.req.Method == "DELETE" {
@@ -807,7 +817,7 @@ func (s *Server) handleCommunityBannerImage(w *responseWriter, r *request) error
 		if err != nil {
 			return err
 		}
-		if err = comm.UpdateBannerImage(r.ctx, s.db, buf); err != nil {
+		if err = comm.UpdateBannerImage(r.ctx, s.db, buf, s.config.S3Enabled); err != nil {
 			return err
 		}
 	} else if r.req.Method == "DELETE" {

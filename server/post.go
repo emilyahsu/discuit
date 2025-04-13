@@ -341,7 +341,7 @@ func (s *Server) imageUpload(w *responseWriter, r *request) error {
 		return err
 	}
 
-	image, err := core.SavePostImage(r.ctx, s.db, *r.viewer, fileData)
+	image, err := core.SavePostImage(r.ctx, s.db, *r.viewer, fileData, s.config.S3Enabled)
 	if err != nil {
 		return err
 	}

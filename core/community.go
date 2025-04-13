@@ -463,11 +463,18 @@ func (c *Community) SetDefault(ctx context.Context, db *sql.DB, set bool) error 
 }
 
 func (c *Community) Join(ctx context.Context, db *sql.DB, user uid.ID) error {
-	if c.NumMembers >= 11 {
+	// Get the latest member count
+	var count int
+	err := db.QueryRowContext(ctx, "SELECT no_members FROM communities WHERE id = ?", c.ID).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count >= 11 {
 		return httperr.NewForbidden("member-limit-reached", "This community has reached its maximum member limit of 11.")
 	}
 
-	err := msql.Transact(ctx, db, func(tx *sql.Tx) error {
+	err = msql.Transact(ctx, db, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO community_members (community_id, user_id) VALUES (?, ?)", c.ID, user); err != nil {
 			if msql.IsErrDuplicateErr(err) {
 				return nil // already a member, exit
@@ -482,7 +489,7 @@ func (c *Community) Join(ctx context.Context, db *sql.DB, user uid.ID) error {
 	if err != nil {
 		return err
 	}
-	c.NumMembers++
+	c.NumMembers = count + 1
 	return nil
 }
 
@@ -506,13 +513,14 @@ func (c *Community) Leave(ctx context.Context, db *sql.DB, user uid.ID) error {
 	return nil
 }
 
-func (c *Community) UpdateProPic(ctx context.Context, db *sql.DB, image []byte) error {
+func (c *Community) UpdateProPic(ctx context.Context, db *sql.DB, image []byte, s3Enabled bool) error {
 	var newImageID uid.ID
 	err := msql.Transact(ctx, db, func(tx *sql.Tx) error {
 		if err := c.DeleteProPicTx(ctx, db, tx); err != nil {
 			return err
 		}
-		imageID, err := images.SaveImageTx(ctx, tx, "disk", image, &images.ImageOptions{
+		storeName := images.GetDefaultStoreName(s3Enabled)
+		imageID, err := images.SaveImageTx(ctx, tx, storeName, image, &images.ImageOptions{
 			Width:  2000,
 			Height: 2000,
 			Format: images.ImageFormatJPEG,
@@ -572,13 +580,14 @@ func (c *Community) DeleteProPicTx(ctx context.Context, db *sql.DB, tx *sql.Tx) 
 	return nil
 }
 
-func (c *Community) UpdateBannerImage(ctx context.Context, db *sql.DB, image []byte) error {
+func (c *Community) UpdateBannerImage(ctx context.Context, db *sql.DB, image []byte, s3Enabled bool) error {
 	var newImageID uid.ID
 	err := msql.Transact(ctx, db, func(tx *sql.Tx) error {
 		if err := c.DeleteBannerImageTx(ctx, db, tx); err != nil {
 			return err
 		}
-		imageID, err := images.SaveImageTx(ctx, tx, "disk", image, &images.ImageOptions{
+		storeName := images.GetDefaultStoreName(s3Enabled)
+		imageID, err := images.SaveImageTx(ctx, tx, storeName, image, &images.ImageOptions{
 			Width:  2000,
 			Height: 2000,
 			Format: images.ImageFormatJPEG,

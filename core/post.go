@@ -33,6 +33,58 @@ const (
 	commentsFetchLimit   = 500
 )
 
+// setLinkImageCopies sets the image copies for a link image
+func setLinkImageCopies(image *images.Image) {
+	if image == nil {
+		return
+	}
+	image.PostScan()
+	image.Copies = []*images.ImageCopy{
+		{Width: 400, Height: 300},
+		{Width: 800, Height: 600},
+		{Width: 1200, Height: 900},
+	}
+}
+
+// postLink represents a link in a post, stored in the database
+type postLink struct {
+	URL         string        `json:"url"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Image       *images.Image `json:"image"`
+	Version     int           `json:"version"`
+	Hostname    string        `json:"hostname"`
+}
+
+// PostLink converts a postLink to a PostLink
+func (l *postLink) PostLink() *PostLink {
+	return &PostLink{
+		URL:         l.URL,
+		Title:       l.Title,
+		Description: l.Description,
+		Image:       l.Image,
+		Version:     l.Version,
+		Hostname:    l.Hostname,
+	}
+}
+
+// PostLink represents a link in a post, sent to the client
+type PostLink struct {
+	URL         string        `json:"url"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Image       *images.Image `json:"image"`
+	Version     int           `json:"version"`
+	Hostname    string        `json:"hostname"`
+}
+
+// SetImageCopies sets the image copies for the link
+func (l *PostLink) SetImageCopies() {
+	if l.Image != nil {
+		setLinkImageCopies(l.Image)
+	}
+}
+
 // PostType represents the type of a post.
 type PostType int
 
@@ -195,7 +247,6 @@ var selectPostCols = []string{
 	"posts.deleted_at",
 	"posts.deleted_by",
 	"posts.deleted_as",
-	"posts.no_comments",
 	"posts.deleted_content",
 	"posts.deleted_content_at",
 	"posts.deleted_content_by",
@@ -336,7 +387,6 @@ func scanPosts(ctx context.Context, db *sql.DB, rows *sql.Rows, viewer *uid.ID) 
 			&post.DeletedAt,
 			&post.DeletedBy,
 			&post.DeletedAs,
-			&post.NumComments,
 			&post.DeletedContent,
 			&post.DeletedContentAt,
 			&post.DeletedContentBy,
@@ -1763,10 +1813,12 @@ func UpdateAllPostsHotness(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func SavePostImage(ctx context.Context, db *sql.DB, authorID uid.ID, image []byte) (*images.ImageRecord, error) {
+func SavePostImage(ctx context.Context, db *sql.DB, authorID uid.ID, image []byte, s3Enabled bool) (*images.ImageRecord, error) {
 	var imageID uid.ID
 	err := msql.Transact(ctx, db, func(tx *sql.Tx) (err error) {
-		id, err := images.SaveImageTx(ctx, tx, "disk", image, &images.ImageOptions{
+		storeName := images.GetDefaultStoreName(s3Enabled)
+
+		id, err := images.SaveImageTx(ctx, tx, storeName, image, &images.ImageOptions{
 			Width:  5000,
 			Height: 5000,
 			Format: images.ImageFormatJPEG,
@@ -1833,66 +1885,4 @@ func RemoveTempImages(ctx context.Context, db *sql.DB) (int, error) {
 	}
 
 	return len(imageIDs), nil
-}
-
-// postLink is the link metadata of a link post as stored in the database.
-type postLink struct {
-	Version  int    `json:"v"`
-	URL      string `json:"u"`
-	Hostname string `json:"h"`
-}
-
-func (pl *postLink) PostLink() *PostLink {
-	return &PostLink{
-		Version:  pl.Version,
-		URL:      pl.URL,
-		Hostname: pl.Hostname,
-	}
-}
-
-// PostLink is the object to be sent to the client.
-type PostLink struct {
-	Version  int           `json:"-"`
-	URL      string        `json:"url"`
-	Hostname string        `json:"hostname"`
-	Image    *images.Image `json:"image"`
-}
-
-func (pl *PostLink) SetImageCopies() {
-	if pl.Image != nil {
-		pl.Image.PostScan()
-		pl.Image.AppendCopy("tiny", 120, 120, images.ImageFitCover, "")
-		pl.Image.AppendCopy("desktop", 325, 250, images.ImageFitCover, "")
-		pl.Image.AppendCopy("mobile", 875, 500, images.ImageFitCover, "")
-	}
-}
-
-// If community is null, site-wide pinned posts are returned.
-func getPinnedPosts(ctx context.Context, db *sql.DB, viewer, community *uid.ID) ([]*Post, error) {
-	var args []any
-	where := "WHERE posts.id "
-	if viewer != nil {
-		args = append(args, *viewer)
-	}
-	if community != nil {
-		where += "IN (SELECT post_id FROM pinned_posts WHERE community_id = ?)"
-		args = append(args, *community)
-	} else {
-		where += "IN (SELECT post_id FROM pinned_posts WHERE community_id IS NULL)"
-	}
-
-	q := buildSelectPostQuery(viewer != nil, where)
-	rows, err := db.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	posts, err := scanPosts(ctx, db, rows, viewer)
-	if err != nil {
-		if err == errPostNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return posts, err
 }

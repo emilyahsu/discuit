@@ -35,6 +35,8 @@ import (
 
 	// Register webp decoding for images pkg.
 	_ "golang.org/x/image/webp"
+
+	"github.com/discuitnet/discuit/internal/s3"
 )
 
 var (
@@ -56,6 +58,38 @@ func init() {
 	if err := registerStore(newDiskStore()); err != nil {
 		panic(err)
 	}
+}
+
+// S3Config defines the configuration needed for S3 storage
+type S3Config interface {
+	GetS3Enabled() bool
+	GetS3Region() string
+	GetS3Bucket() string
+	GetS3AccessKey() string
+	GetS3SecretKey() string
+	GetS3Endpoint() string
+	GetS3PathPrefix() string
+}
+
+// InitS3Store initializes the S3 store if S3 is enabled in the config.
+func InitS3Store(conf s3.Config) error {
+	if !conf.GetS3Enabled() {
+		return nil
+	}
+
+	store, err := newS3Store(
+		conf.GetS3Region(),
+		conf.GetS3Bucket(),
+		conf.GetS3AccessKey(),
+		conf.GetS3SecretKey(),
+		conf.GetS3Endpoint(),
+		conf.GetS3PathPrefix(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create S3 store: %w", err)
+	}
+
+	return registerStore(store)
 }
 
 var (
@@ -83,6 +117,15 @@ func matchStore(name string) store {
 		}
 	}
 	return nil
+}
+
+// GetDefaultStoreName returns the name of the default store to use.
+// Currently returns "s3" if s3Enabled is true, otherwise "disk".
+func GetDefaultStoreName(s3Enabled bool) string {
+	if s3Enabled {
+		return "s3"
+	}
+	return "disk"
 }
 
 // A store saves images to a permanent location. Each store is identified by a

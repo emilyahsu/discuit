@@ -554,7 +554,7 @@ func (s *Server) handleUserProPic(w *responseWriter, r *request) error {
 		if err != nil {
 			return err
 		}
-		if err := user.UpdateProPic(r.ctx, s.db, data); err != nil {
+		if err := user.UpdateProPic(r.ctx, s.db, data, s.config.S3Enabled); err != nil {
 			return err
 		}
 	} else if r.req.Method == "DELETE" {
