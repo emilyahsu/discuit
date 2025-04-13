@@ -1,8 +1,9 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { mfetchjson } from '../../helper';
 import { communityAdded } from '../../slices/communitiesSlice';
-import { loginPromptToggled } from '../../slices/mainSlice';
+import { loginPromptToggled, snackAlert } from '../../slices/mainSlice';
 
 const JoinButton = ({ className, community, ...rest }) => {
   const loggedIn = useSelector((state) => state.main.user) !== null;
@@ -19,29 +20,17 @@ const JoinButton = ({ className, community, ...rest }) => {
       return;
     }
     try {
-      const response = await fetch('/api/_joinCommunity', {
+      const rcomm = await mfetchjson('/api/_joinCommunity', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ communityId: community.id }),
+        body: JSON.stringify({ communityId: community.id, leave: joined }),
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) 
-        if (data.code === 'member-limit-reached' || response.status === 401) {
-          alert('This community has reached its maximum member limit of 11.');
-          return;
-        }
-        throw new Error('Failed to join community');
-      }
-
-      dispatch(communityAdded(data));
+      dispatch(communityAdded(rcomm));
     } catch (error) {
-      console.error('Error joining community:', error);
-      console.error('Error details:', error.message);
-      alert('Failed to join community');
+      if (error.name === 'APIError' && error.json && typeof error.json === 'object' && 'message' in error.json) {
+        dispatch(snackAlert(error.json.message, 'join_error'));
+      } else {
+        dispatch(snackAlert('Failed to join community', 'join_error'));
+      }
     }
   };
 

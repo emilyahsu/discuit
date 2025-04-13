@@ -34,3 +34,10 @@ disableForumCreation: false
 forumCreationReqPoints: 0
 maxForumsPerUser: 1
 imagesFolderPath: "images"
+
+# S3 configuration
+s3Enabled: true
+s3Region: "us-west-1" # e.g. "us-east-1"
+s3Bucket: "cs278-reddit-clone" # your S3 bucket name
+s3AccessKey:  # your AWS access key
+s3SecretKey:  # your AWS secret key
