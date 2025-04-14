@@ -225,6 +225,8 @@ export function userGroupSingular(type: UserGroup, long = false): string {
       return long ? 'admin' : 'admin';
     case 'normal':
       return long ? 'user' : 'user';
+    case 'bots':
+      return long ? 'bot' : 'bot';
   }
 }
 

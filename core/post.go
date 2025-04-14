@@ -657,6 +657,12 @@ func createPost(ctx context.Context, db *sql.DB, opts *createPostOpts) (*Post, e
 		}
 	}
 
+	// Get the author to check if they are a bot
+	author, err := GetUser(ctx, db, opts.author, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// Truncate title and body if max lengths are exceeded.
 	var post Post
 	post.Title = opts.title
@@ -665,6 +671,13 @@ func createPost(ctx context.Context, db *sql.DB, opts *createPostOpts) (*Post, e
 	post.CreatedAt = time.Now()
 	post.ID = uid.New()
 	post.PublicID = utils.GenerateStringID(publicPostIDLength)
+
+	// Set the user group based on whether the author is a bot
+	if author.IsBot {
+		post.PostedAs = UserGroupBots
+	} else {
+		post.PostedAs = UserGroupNormal
+	}
 
 	cols := []msql.ColumnValue{
 		{Name: "id", Value: post.ID},
@@ -676,6 +689,7 @@ func createPost(ctx context.Context, db *sql.DB, opts *createPostOpts) (*Post, e
 		{Name: "body", Value: post.Body},
 		{Name: "created_at", Value: post.CreatedAt},
 		{Name: "hotness", Value: PostHotness(0, 0, post.CreatedAt)},
+		{Name: "user_group", Value: post.PostedAs},
 	}
 
 	if opts.postType == PostTypeLink {
@@ -1607,6 +1621,10 @@ func (p *Post) AddComment(ctx context.Context, db *sql.DB, user uid.ID, g UserGr
 		if !u.Admin {
 			return nil, errNotAdmin
 		}
+	case UserGroupBots:
+		if !u.IsBot {
+			return nil, httperr.NewForbidden("not-bot", "User is not a bot.")
+		}
 	default:
 		return nil, errInvalidUserGroup
 	}
@@ -1647,6 +1665,14 @@ func (p *Post) ChangeUserGroup(ctx context.Context, db *sql.DB, user uid.ID, g U
 		}
 		if !u.Admin {
 			return errNotAdmin
+		}
+	case UserGroupBots:
+		u, err := GetUser(ctx, db, user, nil)
+		if err != nil {
+			return err
+		}
+		if !u.IsBot {
+			return httperr.NewForbidden("not-bot", "User is not a bot.")
 		}
 	default:
 		return errInvalidUserGroup

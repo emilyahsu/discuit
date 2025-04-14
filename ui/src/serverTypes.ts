@@ -6,6 +6,7 @@ export interface User {
   aboutMe: string | null;
   points: number;
   isAdmin: boolean;
+  isBot: boolean;  // Indicates if the user is a bot
   proPic: Image | null;
   badges: Badge[] | null;
   noPosts: number;
@@ -26,7 +27,7 @@ export interface User {
   moddingList: Community[] | null;
 }
 
-export type UserGroup = 'normal' | 'admins' | 'mods';
+export type UserGroup = 'normal' | 'admins' | 'mods' | 'bots';
 
 export interface Image {
   id: string;

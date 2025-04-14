@@ -760,13 +760,12 @@ func (c *Comment) ChangeVote(ctx context.Context, db *sql.DB, user uid.ID, up bo
 	return nil
 }
 
-// ChangeUserGroup changes the capacity in which the comment's author added the
-// post.
-func (c *Comment) ChangeUserGroup(ctx context.Context, db *sql.DB, author uid.ID, g UserGroup) error {
-	if !c.AuthorID.EqualsTo(author) {
+// ChangeUserGroup changes the capacity in which the comment's author submitted the
+// comment.
+func (c *Comment) ChangeUserGroup(ctx context.Context, db *sql.DB, user uid.ID, g UserGroup) error {
+	if !c.AuthorID.EqualsTo(user) {
 		return errNotAuthor
 	}
-
 	if c.PostedAs == g {
 		return nil
 	}
@@ -774,7 +773,7 @@ func (c *Comment) ChangeUserGroup(ctx context.Context, db *sql.DB, author uid.ID
 	switch g {
 	case UserGroupNormal:
 	case UserGroupMods:
-		is, err := UserMod(ctx, db, c.CommunityID, author)
+		is, err := UserMod(ctx, db, c.CommunityID, user)
 		if err != nil {
 			return err
 		}
@@ -782,12 +781,20 @@ func (c *Comment) ChangeUserGroup(ctx context.Context, db *sql.DB, author uid.ID
 			return errNotMod
 		}
 	case UserGroupAdmins:
-		u, err := GetUser(ctx, db, author, nil)
+		u, err := GetUser(ctx, db, user, nil)
 		if err != nil {
 			return err
 		}
 		if !u.Admin {
 			return errNotAdmin
+		}
+	case UserGroupBots:
+		u, err := GetUser(ctx, db, user, nil)
+		if err != nil {
+			return err
+		}
+		if !u.IsBot {
+			return httperr.NewForbidden("not-bot", "User is not a bot.")
 		}
 	default:
 		return errInvalidUserGroup

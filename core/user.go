@@ -45,6 +45,7 @@ const (
 	UserGroupNormal
 	UserGroupAdmins
 	UserGroupMods
+	UserGroupBots
 )
 
 func (u UserGroup) Valid() bool {
@@ -74,6 +75,8 @@ func (u UserGroup) MarshalText() ([]byte, error) {
 		s = "admins"
 	case UserGroupMods:
 		s = "mods"
+	case UserGroupBots:
+		s = "bots"
 	default:
 		return nil, errInvalidUserGroup
 	}
@@ -91,6 +94,8 @@ func (u *UserGroup) UnmarshalText(text []byte) error {
 		*u = UserGroupAdmins
 	case "mods":
 		*u = UserGroupMods
+	case "bots":
+		*u = UserGroupBots
 	default:
 		return errInvalidUserGroup
 	}
@@ -98,57 +103,45 @@ func (u *UserGroup) UnmarshalText(text []byte) error {
 }
 
 type User struct {
-	ID                uid.ID `json:"id"`
-	UserIndex         int    `json:"-"`
-	Username          string `json:"username"`
-	UsernameLowerCase string `json:"-"`
+	ID                       uid.ID          `json:"id"`
+	UserIndex               int             `json:"-"`
+	Username                string          `json:"username"`
+	UsernameLowerCase       string          `json:"-"`
+	Email                   msql.NullString `json:"-"`
+	EmailPublic             *string         `json:"email,omitempty"`
+	EmailConfirmedAt        msql.NullTime   `json:"-"`
+	Password                string          `json:"-"`
+	About                   msql.NullString `json:"aboutMe"`
+	Points                  int             `json:"points"`
+	Admin                   bool            `json:"isAdmin"`
+	IsBot                   bool            `json:"isBot"`
+	ProPic                  *images.Image   `json:"proPic"`
+	Badges                  Badges          `json:"badges"`
+	NumPosts                int             `json:"noPosts"`
+	NumComments             int             `json:"noComments"`
+	NumNewNotifications     int             `json:"notificationsNewCount"`
+	LastSeen               time.Time       `json:"-"`
+	LastSeenMonth          string          `json:"lastSeenMonth"`
+	LastSeenIP             *string         `json:"-"`
+	CreatedAt              time.Time       `json:"createdAt"`
+	CreatedIP              *string         `json:"-"`
+	DeletedAt              msql.NullTime   `json:"-"`
+	BannedAt               msql.NullTime   `json:"-"`
+	Deleted                bool            `json:"deleted"`
+	Banned                 bool            `json:"isBanned"`
+	UpvoteNotificationsOff bool            `json:"upvoteNotificationsOff"`
+	ReplyNotificationsOff  bool            `json:"replyNotificationsOff"`
+	HomeFeed               string          `json:"homeFeed"`
+	RememberFeedSort       bool            `json:"rememberFeedSort"`
+	EmbedsOff             bool            `json:"embedsOff"`
+	HideUserProfilePictures bool            `json:"hideUserProfilePictures"`
+	WelcomeNotificationSent bool            `json:"-"`
+	MutedByViewer          bool            `json:"mutedByViewer"`
+	ModdingList            []*Community    `json:"moddingList"`
 
-	EmailPublic *string `json:"email"`
-
-	Email            msql.NullString `json:"-"`
-	EmailConfirmedAt msql.NullTime   `json:"emailConfirmedAt"`
-	Password         string          `json:"-"`
-	About            msql.NullString `json:"aboutMe"`
-	Points           int             `json:"points"`
-	Admin            bool            `json:"isAdmin"`
-	ProPic           *images.Image   `json:"proPic"`
-	Badges           Badges          `json:"badges"`
-	NumPosts         int             `json:"noPosts"`
-	NumComments      int             `json:"noComments"`
-	LastSeen         time.Time       `json:"-"`             // accurate to within 5 minutes
-	LastSeenMonth    string          `json:"lastSeenMonth"` // of the form: November 2024
-	LastSeenIP       *string         `json:"-"`
-	CreatedAt        time.Time       `json:"createdAt"`
-	CreatedIP        *string         `json:"-"`
-	Deleted          bool            `json:"deleted"`
-	DeletedAt        msql.NullTime   `json:"deletedAt,omitempty"`
-
-	// User preferences.
-	UpvoteNotificationsOff  bool     `json:"upvoteNotificationsOff"`
-	ReplyNotificationsOff   bool     `json:"replyNotificationsOff"`
-	HomeFeed                FeedType `json:"homeFeed"`
-	RememberFeedSort        bool     `json:"rememberFeedSort"`
-	EmbedsOff               bool     `json:"embedsOff"`
-	HideUserProfilePictures bool     `json:"hideUserProfilePictures"`
-
-	WelcomeNotificationSent bool `json:"-"`
-
-	// No banned users are supposed to be logged in. Make sure to log them out
-	// before banning.
-	BannedAt msql.NullTime `json:"bannedAt"`
-	Banned   bool          `json:"isBanned"`
-
-	MutedByViewer bool `json:"-"`
-
-	NumNewNotifications int `json:"notificationsNewCount"`
-
-	// The list of communities the user moderates.
-	ModdingList []*Community `json:"moddingList"`
-
-	// The following values are used only by SetToGhost and UnsetToGhost
-	// methods.
+	// Fields used to restore deleted user's info.
 	preGhostUsername  string
-	preGhostID        uid.ID
+	preGhostID       uid.ID
 	preGhostCreatedAt time.Time
 	preGhostDeletedAt msql.NullTime
 	preGhostBadges    Badges
@@ -231,6 +224,7 @@ func buildSelectUserQuery(where string) string {
 		"users.about_me",
 		"users.points",
 		"users.is_admin",
+		"users.is_bot",
 		"users.no_posts",
 		"users.no_comments",
 		"users.notifications_new_count",
@@ -333,6 +327,7 @@ func scanUsers(ctx context.Context, db *sql.DB, rows *sql.Rows, viewer *uid.ID) 
 			&u.About,
 			&u.Points,
 			&u.Admin,
+			&u.IsBot,
 			&u.NumPosts,
 			&u.NumComments,
 			&u.NumNewNotifications,
@@ -467,6 +462,9 @@ func RegisterUser(ctx context.Context, db *sql.DB, username, email, password, ip
 	}
 	id := uid.New()
 
+	// Check if the username is in bots.txt
+	isBot := isBot(username)
+
 	query, args := msql.BuildInsertQuery("users", []msql.ColumnValue{
 		{Name: "id", Value: id},
 		{Name: "username", Value: username},
@@ -474,6 +472,7 @@ func RegisterUser(ctx context.Context, db *sql.DB, username, email, password, ip
 		{Name: "email", Value: nullEmail},
 		{Name: "password", Value: hash},
 		{Name: "created_ip", Value: ipany},
+		{Name: "is_bot", Value: isBot},
 	})
 	_, err = db.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -1462,7 +1461,7 @@ func GetAllUserIDs(ctx context.Context, db *sql.DB, fetchDeleted, fetchBanned bo
 }
 
 // InitializeBotUsersFromFile reads a text file and creates bot users in the database
-// The file should have one user per line in the format: username,password,personality
+// The file should have one user per line in the format: username,password
 func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string) error {
 	// Set the bots file path for future use
 	SetBotsFilePath(filePath)
@@ -1492,33 +1491,36 @@ func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string
 
 		// Split the line into parts
 		parts := strings.Split(line, ",")
-		if len(parts) < 3 {
+		if len(parts) < 2 {
 			return fmt.Errorf("invalid line format: %s", line)
 		}
 
 		username := strings.TrimSpace(parts[0])
 		password := strings.TrimSpace(parts[1])
-		personality := strings.TrimSpace(parts[2])
 
 		// Validate username
 		if err := IsBotUsernameValid(username); err != nil {
-			return fmt.Errorf("invalid username %s: %w", username, err)
+			log.Printf("Skipping invalid username %s: %v", username, err)
+			continue
 		}
 
 		// Check if username already exists
 		var exists bool
 		err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE username_lc = ?)", strings.ToLower(username)).Scan(&exists)
 		if err != nil {
-			return fmt.Errorf("failed to check username existence: %w", err)
+			log.Printf("Error checking username existence for %s: %v", username, err)
+			continue
 		}
 		if exists {
-			return fmt.Errorf("username %s already exists", username)
+			log.Printf("Skipping existing username %s", username)
+			continue
 		}
 
 		// Hash password
 		passwordHash, err := HashPassword([]byte(password))
 		if err != nil {
-			return err
+			log.Printf("Error hashing password for %s: %v", username, err)
+			continue
 		}
 
 		// Create bot user
@@ -1527,11 +1529,12 @@ func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string
 
 		// Insert into users table
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO users (id, username, username_lc, password, created_at, last_seen, points, is_admin, about_me)
+			INSERT INTO users (id, username, username_lc, password, created_at, last_seen, points, is_admin, is_bot)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, botID, username, strings.ToLower(username), passwordHash, now, now, 0, false, personality)
+		`, botID, username, strings.ToLower(username), passwordHash, now, now, 0, false, true)
 		if err != nil {
-			return fmt.Errorf("failed to create user: %w", err)
+			log.Printf("Error creating user %s: %v", username, err)
+			continue
 		}
 	}
 
@@ -1541,4 +1544,23 @@ func InitializeBotUsersFromFile(ctx context.Context, db *sql.DB, filePath string
 	}
 
 	return nil
+}
+
+// isBot checks if a username belongs to a bot by checking the bots.txt file
+func isBot(username string) bool {
+	data, err := os.ReadFile("bots.txt")
+	if err != nil {
+		return false
+	}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, ",")
+		if len(parts) > 0 && strings.ToLower(parts[0]) == strings.ToLower(username) {
+			return true
+		}
+	}
+	return false
 }

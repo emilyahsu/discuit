@@ -120,35 +120,15 @@ func GetRandomBotUser(ctx context.Context, db *sql.DB) (*User, error) {
 	return user, nil
 }
 
-// IsUserBot checks if a user is a bot by checking if their username is in the bots file
+// IsUserBot checks if a user is a bot by checking the is_bot field in the database
 func IsUserBot(ctx context.Context, db *sql.DB, userID uid.ID) (bool, error) {
-	// Get the user's username
-	var username string
-	err := db.QueryRowContext(ctx, "SELECT username FROM users WHERE id = ?", userID).Scan(&username)
+	var isBot bool
+	err := db.QueryRowContext(ctx, "SELECT is_bot FROM users WHERE id = ?", userID).Scan(&isBot)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to get user: %w", err)
 	}
-
-	// Read bot usernames from bots.txt
-	content, err := os.ReadFile(botsFilePath)
-	if err != nil {
-		return false, fmt.Errorf("failed to read bots file: %w", err)
-	}
-
-	// Parse bot usernames from the file
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		parts := strings.Split(line, ",")
-		if len(parts) >= 1 {
-			botUsername := strings.TrimSpace(parts[0])
-			if botUsername == username {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
+	return isBot, nil
 } 

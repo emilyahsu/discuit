@@ -488,6 +488,45 @@ var CommandBot = &cli.Command{
 				return nil
 			},
 		},
+		{
+			Name:  "make-bot",
+			Usage: "Make an existing user a bot",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "username",
+					Usage:    "Username of the user to make a bot",
+					Required: true,
+				},
+			},
+			Action: func(ctx *cli.Context) error {
+				pg, err := program.NewProgram(true)
+				if err != nil {
+					return err
+				}
+				defer pg.Close()
+
+				username := ctx.String("username")
+				db, err := pg.OpenDatabase()
+				if err != nil {
+					return err
+				}
+
+				// Get the user by username
+				user, err := core.GetUserByUsername(context.Background(), db, username, nil)
+				if err != nil {
+					return fmt.Errorf("failed to get user: %w", err)
+				}
+
+				// Update the user's is_bot field
+				_, err = db.ExecContext(context.Background(), "UPDATE users SET is_bot = TRUE WHERE id = ?", user.ID)
+				if err != nil {
+					return fmt.Errorf("failed to update user: %w", err)
+				}
+
+				log.Printf("Successfully made user %s a bot", username)
+				return nil
+			},
+		},
 	},
 }
 

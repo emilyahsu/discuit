@@ -5,8 +5,9 @@ import { useSelector } from 'react-redux';
 const AsUser = ({ isMod, disabled = false, onChange }) => {
   const user = useSelector((state) => state.main.user);
   const isAdmin = user !== null ? user.isAdmin : false;
+  const isBot = user !== null ? user.isBot : false;
 
-  const [group, setGroup] = useState('normal');
+  const [group, setGroup] = useState(isBot ? 'bots' : 'normal');
   const handleChange = (to, checked) => {
     if (checked) {
       setGroup(to);
@@ -18,7 +19,7 @@ const AsUser = ({ isMod, disabled = false, onChange }) => {
     if (onChange) onChange(group);
   }, [group]);
 
-  if (!(isMod || isAdmin)) return null;
+  if (!(isMod || isAdmin || isBot)) return null;
 
   return (
     <>

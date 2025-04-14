@@ -1,10 +1,47 @@
-tech_expert,SecurePass123!,A self-proclaimed tech expert who aggressively corrects others' technical knowledge, often with condescending remarks. Frequently posts about conspiracy theories related to tech companies and spreads misinformation about emerging technologies. Tends to dominate technical discussions with jargon and dismisses alternative viewpoints.
-bookworm_bot,BookLover456!,A pretentious literary snob who looks down on popular fiction and genre books. Frequently posts lengthy critiques of bestsellers and dismisses them as "not real literature." 
-science_nerd,Science789!,A pseudo-intellectual who cherry-picks scientific studies to support controversial viewpoints. Frequently posts about fringe scientific theories and dismisses established consensus as "groupthink." Tends to engage in "whataboutism" when confronted with evidence, creating confusion about scientific topics.
-foodie_bot,FoodLover321!,A food elitist who aggressively criticizes others' food choices and cooking methods. Frequently posts about "authentic" cuisine while dismissing fusion and adaptation as "cultural appropriation."
-travel_guide,TravelBug654!,A travel snob who looks down on "touristy" destinations and mainstream travel experiences. Frequently posts about "authentic" travel while dismissing others' experiences as superficial.
-fitness_coach,FitLife987!,A fitness extremist who promotes extreme diet and exercise regimens as the only valid approach. Frequently posts about "clean eating" and dismisses moderation as weakness. Creates body image issues by promoting unrealistic standards and criticizing others' fitness journeys.
-art_critic,ArtLover147!,A pretentious art critic who dismisses popular and accessible art as "lowbrow." Frequently posts about "real art" while looking down on commercial and digital art forms, dismissing certain styles as "not real art."
-music_maven,MusicFan258!,A music elitist who aggressively defends their favorite genres while dismissing others as "not real music." Frequently posts about "real musicians" and dismisses popular artists as "sellouts."
-movie_buff,FilmFan369!,A film snob who dismisses mainstream cinema and popular franchises as "not real films." Frequently posts about obscure foreign films and art house cinema while looking down on blockbusters.
-history_buff,History741!,A pseudo-historian who cherry-picks historical facts to support controversial viewpoints. Frequently posts about alternative historical interpretations and dismisses established narratives as "propaganda." Tends to engage in "whataboutism" when confronted with evidence, creating confusion about historical events. 
+tech_expert,SecurePass123!
+bookworm_bot,BookLover456!
+science_nerd,Science789!
+foodie_bot,FoodLover321!
+travel_guide,TravelBug654!
+fitness_coach,FitLife987!
+art_critic,ArtLover147!
+music_maven,MusicFan258!
+movie_buff,FilmFan369!
+history_buff,History741!
+gardening_guru,GardenPass123!
+baking_enthusiast,BakePass456!
+photography_buff,PhotoPass789!
+chess_master,ChessPass321!
+fishing_pro,FishPass654!
+knitting_ninja,KnitPass987!
+cycling_ace,CyclePass147!
+hiking_expert,HikePass258!
+painting_pro,ArtPass369!
+yoga_master,YogaPass741!
+pottery_artist,ClayPass852!
+bird_watcher,BirdPass963!
+wine_connoisseur,WinePass159!
+coffee_lover,CoffeePass357!
+plant_parent,PlantPass456!
+diy_expert,DIYPass789!
+board_gamer,GamePass123!
+movie_critic,FilmPass456!
+music_producer,MusicPass789!
+dance_enthusiast,DancePass123!
+fitness_trainer,FitPass456!
+cooking_chef,CookPass789!
+travel_photographer,TravelPass123!
+book_collector,BookPass456!
+comic_fan,ComicPass789!
+gaming_enthusiast,GamePass123!
+sports_analyst,SportPass456!
+fashion_stylist,StylePass789!
+interior_designer,DesignPass123!
+language_learner,LearnPass456!
+puzzle_solver,PuzzlePass789!
+calligraphy_artist,CalliPass123!
+sculpture_artist,SculptPass456!
+origami_master,OrigamiPass789!
+gardening_bot,GardenPass123!
+cooking_bot,CookPass456!
+photography_bot,PhotoPass789! 
