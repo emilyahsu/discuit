@@ -251,6 +251,7 @@ var selectPostCols = []string{
 	"posts.deleted_content_at",
 	"posts.deleted_content_by",
 	"posts.deleted_content_as",
+	"posts.no_comments",
 }
 
 var selectPostJoins = []string{
@@ -391,6 +392,7 @@ func scanPosts(ctx context.Context, db *sql.DB, rows *sql.Rows, viewer *uid.ID) 
 			&post.DeletedContentAt,
 			&post.DeletedContentBy,
 			&post.DeletedContentAs,
+			&post.NumComments,
 		}
 
 		linkImage := &images.Image{}

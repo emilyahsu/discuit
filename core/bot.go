@@ -213,7 +213,7 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		}
 
 		// Add a new comment to the post
-		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, nil, response)
+		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, nil, response)
 		if err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			}
 
 			// Add a new comment to the post (not as a reply)
-			newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, nil, response)
+			newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, nil, response)
 			if err != nil {
 				return err
 			}
@@ -369,7 +369,7 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 			}
 
 			// Add a new comment as a reply to the user's comment
-			newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupNormal, &comment.ID, response)
+			newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, &comment.ID, response)
 			if err != nil {
 				return err
 			}
