@@ -197,7 +197,7 @@ const Settings = ({ community }) => {
             onChange={setDescription}
           />
         </FormField>
-        {/* <FormField label="Posting restricted">
+        <FormField label="Posting restricted">
           <Checkbox
             variant="switch"
             label="Only moderators of this community are allowed to post."
@@ -205,7 +205,7 @@ const Settings = ({ community }) => {
             onChange={(e) => setPostingRestricted(e.target.checked)}
             spaceBetween
           />
-        </FormField> */}
+        </FormField>
         {user.isAdmin && (
           <FormField>
             <button onClick={handleChangeDefault}>
