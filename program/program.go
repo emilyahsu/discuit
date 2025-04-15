@@ -364,7 +364,8 @@ func (pg *Program) HardReset() error {
 		pg.db = nil
 	}
 
-	db, err := sql.Open("mysql", pg.conf.DBUser+":"+pg.conf.DBPassword+"@/?parseTime=true")
+	// Use the full connection string including host
+	db, err := sql.Open("mysql", pg.conf.DBUser+":"+pg.conf.DBPassword+"@tcp("+pg.conf.DBAddr+")/?parseTime=true")
 	if err != nil {
 		return err
 	}
