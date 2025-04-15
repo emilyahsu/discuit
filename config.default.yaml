@@ -15,10 +15,14 @@ addr: :8080
 sessionCookieName: SID
 
 # MariaDB configuration:
-dbAddr: 127.0.0.1 # Required
-dbUser: discuit # Required
-dbPassword: discuit # Required
-dbName: discuit # Required
+# dbAddr: 127.0.0.1 # Required
+# dbUser: discuit # Required
+# dbPassword: discuit # Required
+# dbName: discuit # Required
+dbAddr: rhitye.stackhero-network.com:7578 # Required
+dbUser: root # Required
+dbPassword: 1CLI5xznbEONzpsfmENKgtPgvleIkNW2 # Required
+dbName: root # Required
 
 # ReCAPTCHA or hCaptcha secret and site-key:
 captchaSecret:
