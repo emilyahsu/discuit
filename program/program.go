@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"crypto/tls"
+
 	"github.com/discuitnet/discuit/config"
 	"github.com/discuitnet/discuit/core"
 	"github.com/discuitnet/discuit/internal/images"
@@ -392,7 +394,36 @@ func (pg *Program) HardReset() error {
 		return err
 	}
 
-	conn, err := redis.Dial("tcp", pg.conf.RedisAddress)
+	// Handle Redis connection with proper URL parsing
+	var conn redis.Conn
+	if strings.HasPrefix(pg.conf.RedisAddress, "redis://") || strings.HasPrefix(pg.conf.RedisAddress, "rediss://") {
+		// For rediss:// URLs, we need to use TLS
+		if strings.HasPrefix(pg.conf.RedisAddress, "rediss://") {
+			conn, err = redis.DialURL(pg.conf.RedisAddress,
+				redis.DialUseTLS(true),
+				redis.DialTLSConfig(&tls.Config{
+					InsecureSkipVerify: true,
+					MinVersion: tls.VersionTLS12,
+				}),
+				redis.DialConnectTimeout(10*time.Second),
+				redis.DialReadTimeout(30*time.Second),
+				redis.DialWriteTimeout(30*time.Second),
+			)
+		} else {
+			conn, err = redis.DialURL(pg.conf.RedisAddress,
+				redis.DialConnectTimeout(10*time.Second),
+				redis.DialReadTimeout(30*time.Second),
+				redis.DialWriteTimeout(30*time.Second),
+			)
+		}
+	} else {
+		// Fall back to standard TCP connection
+		conn, err = redis.Dial("tcp", pg.conf.RedisAddress,
+			redis.DialConnectTimeout(10*time.Second),
+			redis.DialReadTimeout(30*time.Second),
+			redis.DialWriteTimeout(30*time.Second),
+		)
+	}
 	if err != nil {
 		return err
 	}
