@@ -139,6 +139,12 @@ var trollingStyles = []string{
 
 // generatePostForCommunity generates a post for a single community
 func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *Community) error {
+	// Skip cs278 community
+	if community.Name == "cs278" {
+		log.Printf("Skipping community %s as requested", community.Name)
+		return nil
+	}
+
 	// Get a random bot user
 	bot, err := GetRandomBotUser(ctx, s.db)
 	if err != nil {
@@ -214,7 +220,7 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		community.About.String,
 		rulesText,
 		recentPostsText,
-	trollingStyle)
+		trollingStyle)
 
 	response, err := GenerateBotResponse(ctx, prompt, bot.About.String)
 	if err != nil {
