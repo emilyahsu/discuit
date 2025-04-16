@@ -145,7 +145,11 @@ func (s *Server) addComment(w *responseWriter, r *request) error {
 			return // Skip bot response if author is a bot
 		}
 
-		if err := core.BotRespondToComment(r.ctx, s.db, post, comment); err != nil {
+		// Create a new context for the bot response
+		botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := core.BotRespondToComment(botCtx, s.db, post, comment); err != nil {
 			log.Printf("Error generating bot response to comment: %v", err)
 		}
 	}()
