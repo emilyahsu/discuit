@@ -105,6 +105,11 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 
 // BotRespondToPost generates and posts a bot response to a post
 func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Community) error {
+	// Skip if community is cs278
+	if community.Name == "cs278" {
+		return nil
+	}
+
 	// Add random delay between 1-5 minutes
 	delay := time.Duration(1+rand.Intn(5)) * time.Minute
 	time.Sleep(delay)
@@ -311,6 +316,11 @@ Format: Give me the comment only, no quotes.`,
 
 // BotRespondToComment generates and posts a bot response to a comment
 func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *Comment) error {
+	// Skip if community is cs278
+	if post.Community.Name == "cs278" {
+		return nil
+	}
+
 	// Add random delay between 1-5 minutes
 	delay := time.Duration(1+rand.Intn(5)) * time.Minute
 	time.Sleep(delay)
