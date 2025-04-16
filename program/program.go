@@ -114,8 +114,8 @@ func (pg *Program) startBackgroundTasks(delay time.Duration) {
 	}, time.Hour, false)
 
 	// Add bot scheduler
-	// botScheduler := core.NewBotScheduler(pg.db)
-	// botScheduler.Start(pg.ctx)
+	botScheduler := core.NewBotScheduler(pg.db)
+	botScheduler.Start(pg.ctx)
 
 	go func() {
 		time.Sleep(delay)
