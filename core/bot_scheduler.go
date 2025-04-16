@@ -141,7 +141,6 @@ var trollingStyles = []string{
 func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *Community) error {
 	// Skip cs278 community
 	if community.Name == "cs278" {
-		log.Printf("Skipping community %s as requested", community.Name)
 		return nil
 	}
 

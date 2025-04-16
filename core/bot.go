@@ -316,8 +316,14 @@ Format: Give me the comment only, no quotes.`,
 
 // BotRespondToComment generates and posts a bot response to a comment
 func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *Comment) error {
+	// Get community information first
+	community, err := GetCommunityByID(ctx, db, post.CommunityID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get community: %w", err)
+	}
+
 	// Skip if community is cs278
-	if post.Community.Name == "cs278" {
+	if community.Name == "cs278" {
 		return nil
 	}
 
@@ -330,10 +336,6 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	defer cancel()
 
 	// Get community rules
-	community, err := GetCommunityByID(botCtx, db, post.CommunityID, nil)
-	if err != nil {
-		return fmt.Errorf("failed to get community: %w", err)
-	}
 	if err := community.FetchRules(botCtx, db); err != nil {
 		return fmt.Errorf("failed to fetch community rules: %w", err)
 	}
