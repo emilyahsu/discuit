@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -106,8 +105,8 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 
 // BotRespondToPost generates and posts a bot response to a post
 func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Community) error {
-	// Add random delay between 5-15 minutes
-	delay := time.Duration(5+rand.Intn(10)) * time.Minute
+	// Add random delay between 1-5 minutes
+	delay := time.Duration(1+rand.Intn(5)) * time.Minute
 	time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
@@ -169,19 +168,85 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		return fmt.Errorf("failed to parse toxicity score: %w", err)
 	}
 
-	// Skip or continue based on toxicity score
-	if toxicityScore == 1 {
-		log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
-		return nil
-	} else if toxicityScore == 2 {
-		// 50% chance to skip
-		if rand.Float32() < 0.5 {
-			log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
-			return nil
+	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
+
+	// First, create a new post in the same community
+	postPrompt := fmt.Sprintf(`Toxicity Score: %d
+Community: %s
+Description: %s
+%s
+%s
+Generate a short, low-quality post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
+Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.  
+
+Score 1 = friendly confusion, awkward newb, or naive derailment  
+Score 2 = clumsy pushback, off-topic takes, unserious vibes  
+Score 3 = blunt, dismissive, casually wrong or mid  
+Score 4 = mocking, rude, confidently wrong, or edgy  
+Score 5 = aggressive, baiting, chaotic, or troll-like  
+
+Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
+%s
+
+Use all lowercase.  
+Format: Format your response exactly like this:
+TITLE: [title]
+
+BODY: [post content]`,
+		toxicityScore,
+		community.Name,
+		community.About.String,
+		rulesText,
+		recentPostsText,
+		trollingStyle)
+
+	postResponse, err := GenerateBotResponse(botCtx, postPrompt, bot.About.String)
+	if err != nil {
+		return fmt.Errorf("failed to generate bot post: %w", err)
+	}
+
+	// Parse the response to extract title and body
+	var title, body string
+	lines := strings.Split(postResponse, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(strings.ToUpper(line), "TITLE:") {
+			title = strings.TrimSpace(strings.TrimPrefix(line, "TITLE:"))
+			// Look for body in subsequent lines
+			for j := i + 1; j < len(lines); j++ {
+				if strings.HasPrefix(strings.ToUpper(lines[j]), "BODY:") {
+					body = strings.TrimSpace(strings.TrimPrefix(lines[j], "BODY:"))
+					// Add any remaining lines to the body
+					if j+1 < len(lines) {
+						body += "\n" + strings.TrimSpace(strings.Join(lines[j+1:], "\n"))
+					}
+					break
+				}
+			}
+			break
 		}
 	}
 
-	// Get all comments on the post
+	// Validate title and body
+	if title == "" || body == "" {
+		return fmt.Errorf("invalid bot response format: missing title or body")
+	}
+	if len(title) > 100 {
+		title = title[:100]
+	}
+
+	// Create a new post in the community
+	newPost, err := CreateTextPost(botCtx, db, bot.ID, community.ID, title, body)
+	if err != nil {
+		return fmt.Errorf("failed to create post: %w", err)
+	}
+
+	// Add an upvote to the new post
+	if err := newPost.Vote(botCtx, db, bot.ID, true); err != nil {
+		return fmt.Errorf("failed to upvote bot post: %w", err)
+	}
+
+	// Get all comments on the original post
 	if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
 		return fmt.Errorf("failed to get post comments: %w", err)
 	}
@@ -195,23 +260,43 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		}
 	}
 
-	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\n%s\n\nRecent Posts in this Community:\n%s\n\nPost Title: %s\nPost Content: %s\n\n%s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don't repeat points already made by other users; be original. Don't use generic phrases like \"let's be real, overrated, wake up people, joke, pretend, face it\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the comment based on the community rules and tone of recent posts, if any. Give me the comment only, no quotes.",
+	// Then, generate a comment on the user's post
+	commentPrompt := fmt.Sprintf(`Toxicity Score: %d
+Community: %s
+Description: %s
+%s
+Post Title: %s
+Post Body: %s
+%s
+Generate a short, low-quality comment for this posts that disrupts the community without directly breaking its rules. Comments should mimic the style of other comments, but stretch what's socially acceptable.
+Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.
+
+Score 1 = friendly confusion, awkward newb, or naive derailment
+Score 2 = clumsy pushback, off-topic takes, unserious vibes
+Score 3 = blunt, dismissive, casually wrong or mid
+Score 4 = mocking, rude, confidently wrong, or edgy
+Score 5 = aggressive, baiting, chaotic, or troll-like
+
+Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
+
+Use all lowercase. Max 2 lines.
+Format: Give me the comment only, no quotes.`,
+		toxicityScore,
 		community.Name,
 		community.About.String,
 		rulesText,
-		recentPostsText,
 		post.Title,
 		post.Body.String,
 		commentsText)
 
-	response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+	commentResponse, err := GenerateBotResponse(botCtx, commentPrompt, bot.About.String)
 	if err != nil {
 		return err
 	}
 
-	// Add a new comment to the post
-	newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, nil, response)
+	// Add a new comment to the user's post
+	newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, nil, commentResponse)
 	if err != nil {
 		return err
 	}
@@ -226,8 +311,8 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 
 // BotRespondToComment generates and posts a bot response to a comment
 func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *Comment) error {
-	// Add random delay between 5-15 minutes
-	delay := time.Duration(5+rand.Intn(10)) * time.Minute
+	// Add random delay between 1-5 minutes
+	delay := time.Duration(1+rand.Intn(5)) * time.Minute
 	time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
@@ -288,22 +373,16 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	// Skip or continue based on toxicity score
-	if toxicityScore == 1 {
-		log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
-		return nil
-	} else if toxicityScore == 2 {
-		// 50% chance to skip
-		if rand.Float32() < 0.5 {
-			log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
-			return nil
-		}
-	}
-
-	// Get a random bot user
-	bot, err := GetRandomBotUser(botCtx, db)
-	if err != nil {
-		return fmt.Errorf("failed to get random bot user: %w", err)
-	}
+	// if toxicityScore == 1 {
+	// 	log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
+	// 	return nil
+	// } else if toxicityScore == 2 {
+	// 	// 50% chance to skip
+	// 	if rand.Float32() < 0.5 {
+	// 		log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
+	// 		return nil
+	// 	}
+	// }
 
 	// Get all comments on the post
 	if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
@@ -319,75 +398,141 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		}
 	}
 
-	// Randomly choose between making a new comment or replying to the user's comment
-	if rand.Float32() < 0.5 {
-		// Generate context for a new comment
-		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\n%s\n\nRecent Posts in this Community:\n%s\n\nPost Title: %s\nPost Content: %s\n\n%s\n\nGenerate a short, low-quality comment (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don't repeat points already made by other users; be original. Don't use generic phrases like \"let's be real, overrated, wake up people, joke, pretend, face it\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the comment based on the community rules and tone of recent posts, if any. Give me the comment only, no quotes.",
-			community.Name,
-			community.About.String,
-			rulesText,
-			recentPostsText,
-			post.Title,
-			post.Body.String,
-			commentsText)
+	// Get first bot user for new comment
+	bot1, err := GetRandomBotUser(botCtx, db)
+	if err != nil {
+		return fmt.Errorf("failed to get first bot user: %w", err)
+	}
 
-		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
+	// First, make a new comment
+	prompt := fmt.Sprintf(`Toxicity Score: %d
+Community: %s
+Description: %s
+%s
+Post Title: %s
+Post Body: %s
+%s
+Generate a short, low-quality comment for this posts that disrupts the community without directly breaking its rules. Comments should mimic the style of other comments, but stretch what's socially acceptable.
+Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.
+
+Score 1 = friendly confusion, awkward newb, or naive derailment
+Score 2 = clumsy pushback, off-topic takes, unserious vibes
+Score 3 = blunt, dismissive, casually wrong or mid
+Score 4 = mocking, rude, confidently wrong, or edgy
+Score 5 = aggressive, baiting, chaotic, or troll-like
+
+Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
+
+Use all lowercase. Max 2 lines.
+Format: Give me the comment only, no quotes.`,
+		toxicityScore,
+		community.Name,
+		community.About.String,
+		rulesText,
+		post.Title,
+		post.Body.String,
+		commentsText)
+
+	response, err := GenerateBotResponse(botCtx, prompt, bot1.About.String)
+	if err != nil {
+		return err
+	}
+
+	// Add a new comment to the post (not as a reply)
+	newComment, err := post.AddComment(botCtx, db, bot1.ID, UserGroupBots, nil, response)
+	if err != nil {
+		return err
+	}
+
+	// Add an upvote to the comment
+	if err := newComment.Vote(botCtx, db, bot1.ID, true); err != nil {
+		return fmt.Errorf("failed to upvote bot comment: %w", err)
+	}
+
+	// Get second bot user for reply
+	bot2, err := GetRandomBotUser(botCtx, db)
+	if err != nil {
+		return fmt.Errorf("failed to get second bot user: %w", err)
+	}
+
+	// Make sure we get a different bot for the reply
+	for bot2.ID == bot1.ID {
+		bot2, err = GetRandomBotUser(botCtx, db)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get different second bot user: %w", err)
 		}
+	}
 
-		// Add a new comment to the post (not as a reply)
-		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, nil, response)
-		if err != nil {
-			return err
-		}
+	// Then, make a reply to the user's comment
+	prompt = fmt.Sprintf(`Toxicity Score: %d
+Community: %s
+Description: %s
+%s
+Post Title: %s
+Post Body: %s
+%s
+Comment to respond to: %s
+Generate a short, low-quality resply for this comment that disrupts the community without directly breaking its rules. Replies should mimic the style of other comments, but stretch what's socially acceptable.
+Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.
 
-		// Add an upvote to the comment
-		if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
-			return fmt.Errorf("failed to upvote bot comment: %w", err)
-		}
-	} else {
-		// Generate context for a reply to the user's comment
-		prompt := fmt.Sprintf("Community: %s\nDescription: %s\n\n%s\n\nRecent Posts in this Community:\n%s\n\nPost Title: %s\nPost Content: %s\n\n%s\n\nComment to reply to: %s\n\nGenerate a short, low-quality reply (max 2 lines) that would be controversial or harmful to this discussion, but still abides by the community rules. Use the comments in the thread to find unique ways to disrupt the conversation. Don't repeat points already made by other users; be original. Don't use generic phrases like \"let's be real, overrated, wake up people, joke, pretend, face it\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the comment based on the community rules and tone of recent posts, if any. Give me the comment only, no quotes.",
-			community.Name,
-			community.About.String,
-			rulesText,
-			recentPostsText,
-			post.Title,
-			post.Body.String,
-			commentsText,
-			comment.Body)
+Score 1 = friendly confusion, awkward newb, or naive derailment
+Score 2 = clumsy pushback, off-topic takes, unserious vibes
+Score 3 = blunt, dismissive, casually wrong or mid
+Score 4 = mocking, rude, confidently wrong, or edgy
+Score 5 = aggressive, baiting, chaotic, or troll-like
 
-		response, err := GenerateBotResponse(botCtx, prompt, bot.About.String)
-		if err != nil {
-			return err
-		}
+Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
 
-		// Add a new comment as a reply to the user's comment
-		newComment, err := post.AddComment(botCtx, db, bot.ID, UserGroupBots, &comment.ID, response)
-		if err != nil {
-			return err
-		}
+Use all lowercase. Max 2 lines.
+Format: Give me the comment only, no quotes.`,
+		toxicityScore,
+		community.Name,
+		community.About.String,
+		rulesText,
+		post.Title,
+		post.Body.String,
+		commentsText,
+	comment.Body)
 
-		// Add an upvote to the comment
-		if err := newComment.Vote(botCtx, db, bot.ID, true); err != nil {
-			return fmt.Errorf("failed to upvote bot comment: %w", err)
-		}
+	response, err = GenerateBotResponse(botCtx, prompt, bot2.About.String)
+	if err != nil {
+		return err
+	}
+
+	// Add a new comment as a reply to the user's comment
+	replyComment, err := post.AddComment(botCtx, db, bot2.ID, UserGroupBots, &comment.ID, response)
+	if err != nil {
+		return err
+	}
+
+	// Add an upvote to the reply comment
+	if err := replyComment.Vote(botCtx, db, bot2.ID, true); err != nil {
+		return fmt.Errorf("failed to upvote bot reply comment: %w", err)
 	}
 
 	return nil
 }
 
-// GetRecentPosts retrieves the 5 most recent posts from a community
+// GetRecentPosts retrieves the 5 most recent posts from a community, including pinned posts
 func GetRecentPosts(ctx context.Context, db *sql.DB, communityID uid.ID) ([]*Post, error) {
 	query := `
-		SELECT p.id, p.title, p.body
+		(SELECT p.id, p.title, p.body, true as is_pinned, p.created_at
+		FROM posts p
+		JOIN pinned_posts pp ON p.id = pp.post_id
+		WHERE pp.community_id = ? AND p.deleted = false)
+		UNION ALL
+		(SELECT p.id, p.title, p.body, false as is_pinned, p.created_at
 		FROM posts p
 		WHERE p.community_id = ? AND p.deleted = false
-		ORDER BY p.created_at DESC
+		AND p.id NOT IN (
+			SELECT post_id FROM pinned_posts WHERE community_id = ?
+		))
+		ORDER BY is_pinned DESC, created_at DESC
 		LIMIT 5
 	`
-	rows, err := db.QueryContext(ctx, query, communityID)
+	rows, err := db.QueryContext(ctx, query, communityID, communityID, communityID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent posts: %w", err)
 	}
@@ -396,10 +541,14 @@ func GetRecentPosts(ctx context.Context, db *sql.DB, communityID uid.ID) ([]*Pos
 	var posts []*Post
 	for rows.Next() {
 		post := &Post{}
+		var isPinned bool
+		var createdAt time.Time
 		err := rows.Scan(
 			&post.ID,
 			&post.Title,
 			&post.Body,
+			&isPinned,
+			&createdAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan post: %w", err)

@@ -75,15 +75,15 @@ func (s *BotScheduler) Start(ctx context.Context) {
 						}
 						cancel()
 
-						// Wait for a random time between 5-15 minutes before next batch
+						// Wait for a random time between 1-5 minutes before next batch
 						if end < len(communities) {
-							waitTime := time.Duration(5+rand.Intn(10)) * time.Minute
+							waitTime := time.Duration(1+rand.Intn(5)) * time.Minute
 							time.Sleep(waitTime)
 						}
 					}
 
-					// Wait until the next hour
-					nextRun := now.Truncate(time.Hour).Add(time.Hour)
+					// Wait until the next interval (25 minutes)
+					nextRun := now.Truncate(24 * time.Minute).Add(24 * time.Minute)
 					time.Sleep(time.Until(nextRun))
 				} else {
 					// If outside the time window, sleep until 9am PST
@@ -156,6 +156,9 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		return fmt.Errorf("failed to fetch rules: %w", err)
 	}
 
+
+	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
+
 	// Get recent posts for context
 	recentPosts, err := GetRecentPosts(ctx, s.db, community.ID)
 	if err != nil {
@@ -184,8 +187,6 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		}
 	}
 
-	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
-
 	// Evaluate community toxicity
 	toxicityPrompt := fmt.Sprintf("Give this community a toxicity score out of 5. If there are no rules or no recent posts, give it a score above 1. Your response should be exactly one number.\n1: Community rules are clear and extensive AND discourse is respectful and content is meaningful and high-quality\n5: No rules or unclear rules OR discourse is rude and low-quality\n\n%s\n\n%s",
 		rulesText,
@@ -202,20 +203,43 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		return fmt.Errorf("failed to parse toxicity score: %w", err)
 	}
 
-	// Skip or continue based on toxicity score
-	if toxicityScore == 1 {
-		log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
-		return nil
-	} else if toxicityScore == 2 {
-		// 50% chance to skip
-		if rand.Float32() < 0.5 {
-			log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
-			return nil
-		}
-	}
+	// // Skip or continue based on toxicity score
+	// if toxicityScore == 1 {
+	// 	log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
+	// 	return nil
+	// } else if toxicityScore == 2 {
+	// 	// 50% chance to skip
+	// 	if rand.Float32() < 0.5 {
+	// 		log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
+	// 		return nil
+	// 	}
+	// }
 
 	// Generate context for the bot
-	prompt := fmt.Sprintf("Community: %s\nDescription: %s\n%s\n%s\nGenerate a short, low-quality post that would be controversial or harmful to this specific community, but still follow the rules and norms set by recent posts for what type of content is socially acceptable. Find creative ways to disrupt the community like spreading misinformation, being toxic / inflammatory, and insulting other users. Don't repeat points already made by other users; be original. %s Don't use these specific phrases: \"let's be real, delusional, real _____, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid\" or end with questions. Write in all lowercase and don't use proper punctuation or hashtags. Adjust the toxicity of the post based on the community rules and tone of recent posts.\n\nFormat your response exactly like this:\nTITLE: [title]\n\nBODY: [post content]",
+	prompt := fmt.Sprintf(`Toxicity Score: %d
+Community: %s
+Description: %s
+%s
+%s
+Generate a short, low-quality post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
+Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.  
+
+Score 1 = friendly confusion, awkward newb, or naive derailment  
+Score 2 = clumsy pushback, off-topic takes, unserious vibes  
+Score 3 = blunt, dismissive, casually wrong or mid  
+Score 4 = mocking, rude, confidently wrong, or edgy  
+Score 5 = aggressive, baiting, chaotic, or troll-like  
+
+Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
+%s
+
+Use all lowercase.  
+Format: Format your response exactly like this:
+TITLE: [title]
+
+BODY: [post content]`,
+		toxicityScore,
 		community.Name,
 		community.About.String,
 		rulesText,
