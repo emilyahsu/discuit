@@ -129,10 +129,9 @@ func (s *BotScheduler) Start(ctx context.Context) {
 
 var trollingStyles = []string{
 	"Use short punchy sentences. Post length should be around 10 words.",
-	"You get your point across with examples. Post length should be max 50 words.",
-	"You get your point across with statistics. Post length should be max 50 words .",
+	"You get your point across with examples. Post length should be max 20 words.",
+	"You get your point across with statistics. Post length should be max 30 words .",
 	"You get your point across through anecdotes. Post length should be max 50 words.",
-	"You get your point across through stories. Post length should be max 60 words.",
 	"Format the post using Markdown. You must include a list. Post length should be max 30 words.",
 	"You must use one emoji. Post length should be max 20 words.",
 	"You must bold or italicize one word in Markdown. Post length should be max 20 words.",
@@ -221,7 +220,7 @@ Community: %s
 Description: %s
 %s
 %s
-Generate a engaging post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
+Generate a short, low quality post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
 Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.  
 
 Score 1 = friendly confusion, awkward newb, or naive derailment  
@@ -231,7 +230,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like  
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
-Don't use these words or phrases: "overrated, who cares about ___, who needs ___, ___ is just ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."  
+Don't use these words or phrases: "glorified, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."  
 %s
 
 Use all lowercase.  
