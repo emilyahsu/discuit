@@ -128,8 +128,8 @@ func (s *BotScheduler) Start(ctx context.Context) {
 // }
 
 var trollingStyles = []string{
-	"Use short punchy sentences. Post length should be around 10 words and must include one typo.",
-	"You get your point across with examples. Post length should be max 20 words and must include one grammatical error.",
+	"Use short punchy sentences. Post length should be around 10 words.",
+	"You get your point across with examples. Post length should be max 20 words.",
 	"You get your point across with statistics. Post length should be max 30 words .",
 	"You get your point across through anecdotes. Post length should be max 50 words.",
 	"Format the post using Markdown. You must include a list. Post length should be max 30 words.",
@@ -231,7 +231,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like  
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
-Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
+Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."  
 %s
 
 Use all lowercase.  

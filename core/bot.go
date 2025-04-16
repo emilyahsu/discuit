@@ -283,7 +283,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
@@ -432,7 +432,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
@@ -493,7 +493,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
