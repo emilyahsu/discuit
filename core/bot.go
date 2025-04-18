@@ -111,8 +111,8 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 	}
 
 	// Add random delay between 1-5 minutes
-	// delay := time.Duration(1+rand.Intn(5)) * time.Minute
-	// time.Sleep(delay)
+	delay := time.Duration(1+rand.Intn(5)) * time.Minute
+	time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
 	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -232,7 +232,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like  
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
-Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
+Don't use these phrases: "just saying, let's be real, delusional, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
 %s
 
 Use all lowercase.  
@@ -310,7 +310,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
@@ -355,8 +355,8 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	// Add random delay between 1-5 minutes
-	// delay := time.Duration(1+rand.Intn(5)) * time.Minute
-	// time.Sleep(delay)
+	delay := time.Duration(1+rand.Intn(5)) * time.Minute
+	time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
 	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -475,7 +475,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
