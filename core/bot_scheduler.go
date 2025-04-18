@@ -36,7 +36,7 @@ func (s *BotScheduler) Start(ctx context.Context) {
 				pstTime := now.In(loc)
 				
 				// Check if current hour is between 9am and 9pm PST
-				if pstTime.Hour() >= 9 && pstTime.Hour() < 21 {
+				if pstTime.Hour() >= 9 && pstTime.Hour() < 23 {
 					// Get all communities
 					communities, err := GetAllCommunities(ctx, s.db)
 					if err != nil {
@@ -139,7 +139,7 @@ var trollingStyles = []string{
 
 // generatePostForCommunity generates a post for a single community
 func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *Community) error {
-	// Skip cs278 community
+	// Skip if community is cs278
 	if community.Name == "cs278" {
 		return nil
 	}
@@ -152,11 +152,8 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 
 	// Fetch community rules
 	if err := community.FetchRules(ctx, s.db); err != nil {
-		return fmt.Errorf("failed to fetch rules: %w", err)
+		return fmt.Errorf("failed to fetch community rules: %w", err)
 	}
-
-
-	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
 
 	// Get recent posts for context
 	recentPosts, err := GetRecentPosts(ctx, s.db, community.ID)
@@ -164,11 +161,14 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		return fmt.Errorf("failed to get recent posts: %w", err)
 	}
 
-	// Format community rules
+	// Format community rules with nil checks
 	var rulesText string
 	if len(community.Rules) > 0 {
 		rulesText = "Community Rules:\n"
 		for _, rule := range community.Rules {
+			if rule == nil {
+				continue
+			}
 			rulesText += fmt.Sprintf("- %s", rule.Rule)
 			if rule.Description.Valid && rule.Description.String != "" {
 				rulesText += fmt.Sprintf(": %s", rule.Description.String)
@@ -177,12 +177,20 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		}
 	}
 
-	// Format recent posts as context
+	// Format recent posts as context with nil checks
 	var recentPostsText string
 	if len(recentPosts) > 0 {
 		recentPostsText = "Recent Posts in this Community:\n"
 		for i, p := range recentPosts {
-			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, p.Title, p.Body.String)
+			if p == nil {
+				continue
+			}
+			title := p.Title
+			body := ""
+			if p.Body.Valid {
+				body = p.Body.String
+			}
+			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, title, body)
 		}
 	}
 
@@ -202,25 +210,27 @@ func (s *BotScheduler) generatePostForCommunity(ctx context.Context, community *
 		return fmt.Errorf("failed to parse toxicity score: %w", err)
 	}
 
-	// // Skip or continue based on toxicity score
-	// if toxicityScore == 1 {
-	// 	log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
-	// 	return nil
-	// } else if toxicityScore == 2 {
-	// 	// 50% chance to skip
-	// 	if rand.Float32() < 0.5 {
-	// 		log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
-	// 		return nil
-	// 	}
-	// }
+	// Skip if community is very high quality (toxicity score 1)
+	if toxicityScore == 1 {
+		return nil
+	}
 
-	// Generate context for the bot
-	prompt := fmt.Sprintf(`Toxicity Score: %d
+	// Prepare community information with fallbacks
+	communityAbout := ""
+	if community.About.Valid {
+		communityAbout = community.About.String
+	}
+
+	// Select a random trolling style
+	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
+
+	// Generate a new post
+	postPrompt := fmt.Sprintf(`Toxicity Score: %d
 Community: %s
 Description: %s
 %s
 %s
-Generate a short, low quality post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
+Generate a short, low-quality post that disrupts the community without directly breaking its rules. Posts should mimic the style of recent content, but stretch what's socially acceptable.
 Adjust tone based on the current toxicity score (1–5), using the descriptions below. Select a tone primarily based on that score, but occasionally sample from neighboring scores to reflect realistic variation. For example, if the score is 4, there's a high chance of using a score 4 tone, but a smaller chance of using tone 3, 5, 2, or even 1.  
 
 Score 1 = friendly confusion, awkward newb, or naive derailment  
@@ -230,7 +240,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like  
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
-Don't use these words or phrases: "glorified, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."  
+Avoid: "let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
 %s
 
 Use all lowercase.  
@@ -240,19 +250,19 @@ TITLE: [title]
 BODY: [post content]`,
 		toxicityScore,
 		community.Name,
-		community.About.String,
+		communityAbout,
 		rulesText,
 		recentPostsText,
 		trollingStyle)
 
-	response, err := GenerateBotResponse(ctx, prompt, bot.About.String)
+	postResponse, err := GenerateBotResponse(ctx, postPrompt, "")
 	if err != nil {
-		return fmt.Errorf("failed to generate bot response: %w", err)
+		return fmt.Errorf("failed to generate bot post: %w", err)
 	}
 
 	// Parse the response to extract title and body
 	var title, body string
-	lines := strings.Split(response, "\n")
+	lines := strings.Split(postResponse, "\n")
 	for i, line := range lines {
 		if strings.HasPrefix(strings.ToUpper(line), "TITLE:") {
 			title = strings.TrimSpace(strings.TrimPrefix(line, "TITLE:"))
@@ -285,12 +295,11 @@ BODY: [post content]`,
 		return fmt.Errorf("failed to create post: %w", err)
 	}
 
-	// Add an upvote to the post
+	// Add an upvote to the new post
 	if err := newPost.Vote(ctx, s.db, bot.ID, true); err != nil {
 		return fmt.Errorf("failed to upvote bot post: %w", err)
 	}
 
-	log.Printf("Successfully created bot post in community %s", community.Name)
 	return nil
 }
 

@@ -111,8 +111,8 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 	}
 
 	// Add random delay between 1-5 minutes
-	delay := time.Duration(1+rand.Intn(5)) * time.Minute
-	time.Sleep(delay)
+	// delay := time.Duration(1+rand.Intn(5)) * time.Minute
+	// time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
 	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -135,11 +135,14 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		return fmt.Errorf("failed to get recent posts: %w", err)
 	}
 
-	// Format community rules
+	// Format community rules with nil checks
 	var rulesText string
 	if len(community.Rules) > 0 {
 		rulesText = "Community Rules:\n"
 		for _, rule := range community.Rules {
+			if rule == nil {
+				continue
+			}
 			rulesText += fmt.Sprintf("- %s", rule.Rule)
 			if rule.Description.Valid && rule.Description.String != "" {
 				rulesText += fmt.Sprintf(": %s", rule.Description.String)
@@ -148,12 +151,20 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 		}
 	}
 
-	// Format recent posts as context
+	// Format recent posts as context with nil checks
 	var recentPostsText string
 	if len(recentPosts) > 0 {
 		recentPostsText = "Recent Posts in this Community:\n"
 		for i, p := range recentPosts {
-			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, p.Title, p.Body.String)
+			if p == nil {
+				continue
+			}
+			title := p.Title
+			body := ""
+			if p.Body.Valid {
+				body = p.Body.String
+			}
+			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, title, body)
 		}
 	}
 
@@ -174,6 +185,36 @@ func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Co
 	}
 
 	trollingStyle := trollingStyles[rand.Intn(len(trollingStyles))]
+
+	// Get all comments on the original post
+	if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
+		return fmt.Errorf("failed to get post comments: %w", err)
+	}
+
+	// Format comments as context with nil checks
+	var commentsText string
+	if len(post.Comments) > 0 {
+		commentsText = "Comments on this Post:\n"
+		for i, c := range post.Comments {
+			if c == nil || c.Author == nil {
+				continue
+			}
+			username := c.Author.Username
+			body := c.Body
+			commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, username, body)
+		}
+	}
+
+	// Prepare post and community information with fallbacks
+	postTitle := post.Title
+	postBody := ""
+	if post.Body.Valid {
+		postBody = post.Body.String
+	}
+	communityAbout := ""
+	if community.About.Valid {
+		communityAbout = community.About.String
+	}
 
 	// First, create a new post in the same community
 	postPrompt := fmt.Sprintf(`Toxicity Score: %d
@@ -201,12 +242,12 @@ TITLE: [title]
 BODY: [post content]`,
 		toxicityScore,
 		community.Name,
-		community.About.String,
+		communityAbout,
 		rulesText,
 		recentPostsText,
 		trollingStyle)
 
-	postResponse, err := GenerateBotResponse(botCtx, postPrompt, bot.About.String)
+	postResponse, err := GenerateBotResponse(botCtx, postPrompt, "")
 	if err != nil {
 		return fmt.Errorf("failed to generate bot post: %w", err)
 	}
@@ -251,20 +292,6 @@ BODY: [post content]`,
 		return fmt.Errorf("failed to upvote bot post: %w", err)
 	}
 
-	// Get all comments on the original post
-	if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
-		return fmt.Errorf("failed to get post comments: %w", err)
-	}
-
-	// Format comments as context
-	var commentsText string
-	if len(post.Comments) > 0 {
-		commentsText = "Comments on this Post:\n"
-		for i, c := range post.Comments {
-			commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, c.Author.Username, c.Body)
-		}
-	}
-
 	// Then, generate a comment on the user's post
 	commentPrompt := fmt.Sprintf(`Toxicity Score: %d
 Community: %s
@@ -289,13 +316,13 @@ Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
 		toxicityScore,
 		community.Name,
-		community.About.String,
+		communityAbout,
 		rulesText,
-		post.Title,
-		post.Body.String,
+		postTitle,
+		postBody,
 		commentsText)
 
-	commentResponse, err := GenerateBotResponse(botCtx, commentPrompt, bot.About.String)
+	commentResponse, err := GenerateBotResponse(botCtx, commentPrompt, "")
 	if err != nil {
 		return err
 	}
@@ -328,8 +355,8 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	// Add random delay between 1-5 minutes
-	delay := time.Duration(1+rand.Intn(5)) * time.Minute
-	time.Sleep(delay)
+	// delay := time.Duration(1+rand.Intn(5)) * time.Minute
+	// time.Sleep(delay)
 
 	// Create a new context with timeout for the bot response
 	botCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -346,11 +373,14 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		return fmt.Errorf("failed to get recent posts: %w", err)
 	}
 
-	// Format community rules
+	// Format community rules with nil checks
 	var rulesText string
 	if len(community.Rules) > 0 {
 		rulesText = "Community Rules:\n"
 		for _, rule := range community.Rules {
+			if rule == nil {
+				continue
+			}
 			rulesText += fmt.Sprintf("- %s", rule.Rule)
 			if rule.Description.Valid && rule.Description.String != "" {
 				rulesText += fmt.Sprintf(": %s", rule.Description.String)
@@ -359,12 +389,20 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		}
 	}
 
-	// Format recent posts as context
+	// Format recent posts as context with nil checks
 	var recentPostsText string
 	if len(recentPosts) > 0 {
 		recentPostsText = "Recent Posts in this Community:\n"
 		for i, p := range recentPosts {
-			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, p.Title, p.Body.String)
+			if p == nil {
+				continue
+			}
+			title := p.Title
+			body := ""
+			if p.Body.Valid {
+				body = p.Body.String
+			}
+			recentPostsText += fmt.Sprintf("%d. %s\n   %s\n\n", i+1, title, body)
 		}
 	}
 
@@ -384,29 +422,22 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 		return fmt.Errorf("failed to parse toxicity score: %w", err)
 	}
 
-	// Skip or continue based on toxicity score
-	// if toxicityScore == 1 {
-	// 	log.Printf("Skipping community %s due to low toxicity score (1)", community.Name)
-	// 	return nil
-	// } else if toxicityScore == 2 {
-	// 	// 50% chance to skip
-	// 	if rand.Float32() < 0.5 {
-	// 		log.Printf("Skipping community %s due to random selection with toxicity score 2", community.Name)
-	// 		return nil
-	// 	}
-	// }
-
 	// Get all comments on the post
 	if _, err := post.GetComments(botCtx, db, nil, nil); err != nil {
 		return fmt.Errorf("failed to get post comments: %w", err)
 	}
 
-	// Format comments as context
+	// Format comments as context with nil checks
 	var commentsText string
 	if len(post.Comments) > 0 {
 		commentsText = "Comments on this Post:\n"
 		for i, c := range post.Comments {
-			commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, c.Author.Username, c.Body)
+			if c == nil || c.Author == nil {
+				continue
+			}
+			username := c.Author.Username
+			body := c.Body
+			commentsText += fmt.Sprintf("%d. %s: %s\n", i+1, username, body)
 		}
 	}
 
@@ -417,6 +448,16 @@ func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *C
 	}
 
 	// First, make a new comment
+	postTitle := post.Title
+	postBody := ""
+	if post.Body.Valid {
+		postBody = post.Body.String
+	}
+	communityAbout := ""
+	if community.About.Valid {
+		communityAbout = community.About.String
+	}
+
 	prompt := fmt.Sprintf(`Toxicity Score: %d
 Community: %s
 Description: %s
@@ -440,13 +481,13 @@ Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
 		toxicityScore,
 		community.Name,
-		community.About.String,
+		communityAbout,
 		rulesText,
-		post.Title,
-		post.Body.String,
+		postTitle,
+		postBody,
 		commentsText)
 
-	response, err := GenerateBotResponse(botCtx, prompt, bot1.About.String)
+	response, err := GenerateBotResponse(botCtx, prompt, "")
 	if err != nil {
 		return err
 	}
@@ -477,6 +518,8 @@ Format: Give me the comment only, no quotes.`,
 	}
 
 	// Then, make a reply to the user's comment
+	commentBody := comment.Body
+
 	prompt = fmt.Sprintf(`Toxicity Score: %d
 Community: %s
 Description: %s
@@ -501,14 +544,14 @@ Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
 		toxicityScore,
 		community.Name,
-		community.About.String,
+		communityAbout,
 		rulesText,
-		post.Title,
-		post.Body.String,
+		postTitle,
+		postBody,
 		commentsText,
-	comment.Body)
+		commentBody)
 
-	response, err = GenerateBotResponse(botCtx, prompt, bot2.About.String)
+	response, err = GenerateBotResponse(botCtx, prompt, "")
 	if err != nil {
 		return err
 	}
