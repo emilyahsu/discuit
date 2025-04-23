@@ -105,6 +105,12 @@ func GenerateBotResponse(ctx context.Context, prompt string, personality string)
 
 // BotRespondToPost generates and posts a bot response to a post
 func BotRespondToPost(ctx context.Context, db *sql.DB, post *Post, community *Community) error {
+	
+	// Skip if post is deleted
+	if post.Deleted {
+		return nil
+	}
+
 	// Skip if community is cs278
 	if community.Name == "cs278" {
 		return nil
@@ -310,7 +316,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Don't use these phrases: "just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "wannabe, just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
@@ -343,6 +349,11 @@ Format: Give me the comment only, no quotes.`,
 
 // BotRespondToComment generates and posts a bot response to a comment
 func BotRespondToComment(ctx context.Context, db *sql.DB, post *Post, comment *Comment) error {
+	
+	// Skip if post is deleted
+	if post.Deleted {
+		return nil
+	}
 	// Get community information first
 	community, err := GetCommunityByID(ctx, db, post.CommunityID, nil)
 	if err != nil {
@@ -475,7 +486,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Don't use these phrases: "just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "wannabe, just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,
@@ -538,7 +549,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.
-Don't use these phrases: "overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
+Don't use these phrases: "wannabe, just saying, overrated, who cares about ___, who needs ___, let's be real, loser, wake up people, joke, sheep, drinking the kool-aid."
 
 Use all lowercase. Max 2 lines.
 Format: Give me the comment only, no quotes.`,

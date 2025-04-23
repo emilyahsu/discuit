@@ -240,7 +240,7 @@ Score 4 = mocking, rude, confidently wrong, or edgy
 Score 5 = aggressive, baiting, chaotic, or troll-like  
 
 Be original. Don't repeat points. No hashtags or proper punctuation. No questions.  
-Avoid: "just saying, let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
+Avoid: "wannabe, just saying, let's be real, delusional, real ___, truth, loser, overrated, wake up people, joke, sheep, drinking the kool-aid."  
 %s
 
 Use all lowercase.  

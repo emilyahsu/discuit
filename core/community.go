@@ -470,9 +470,9 @@ func (c *Community) Join(ctx context.Context, db *sql.DB, user uid.ID) error {
 		return err
 	}
 
-	if count >= 11 {
-		return httperr.NewForbidden("member-limit-reached", "This community has reached its maximum member limit of 11.")
-	}
+	// if count >= 11 {
+	// 	return httperr.NewForbidden("member-limit-reached", "This community has reached its maximum member limit of 11.")
+	// }
 
 	err = msql.Transact(ctx, db, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO community_members (community_id, user_id) VALUES (?, ?)", c.ID, user); err != nil {
